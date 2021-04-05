@@ -5,27 +5,43 @@
 Run the following commands
 
 `docker exec -it postgresql_comments bash`
+
 `psql --host=localhost --username=postgres --password`
+
 Type password `postgres`
+
 `CREATE DATABASE comments;`
+
 Type `\l` to see it created.
 
 `docker exec -it postgresql_hotels bash`
+
 `psql --host=localhost --username=postgres --password`
+
 Type password `postgres`
+
 `CREATE DATABASE hotels;`
+
 Type `\l` to see it created.
 
 `docker exec -it postgresql_images bash`
+
 `psql --host=localhost --username=postgres --password`
+
 Type password `postgres`
+
 `CREATE DATABASE images;`
+
 Type `\l` to see it created.
 
 `docker exec -it postgresql_users bash`
+
 `psql --host=localhost --username=postgres --password`
+
 Type password `postgres`
+
 `CREATE DATABASE users;`
+
 Type `\l` to see it created.
 
 ## Migrate
