@@ -1,0 +1,27 @@
+// protoc --go_out=plugins=grpc:. *.proto
+syntax = "proto3";
+
+import "google/protobuf/timestamp.proto";
+
+package images;
+
+option go_package = "github.com/badu/microservices-demo/app/images;images";
+
+message Image {
+  string ImageID = 1;
+  string ImageURL = 2;
+  bool IsUploaded = 3;
+  google.protobuf.Timestamp CreatedAt = 4;
+}
+
+message GetByIDResponse {
+  Image Image = 1;
+}
+
+message GetByIDRequest {
+  string ImageID = 1;
+}
+
+service ImageService {
+  rpc GetImageByID(GetByIDRequest) returns (GetByIDResponse) {}
+}

@@ -1,0 +1,189 @@
+definitions:
+  users.Login:
+    properties:
+      email:
+        type: string
+      password:
+        type: string
+    required:
+    - email
+    - password
+    type: object
+  users.UserDO:
+    properties:
+      avatar:
+        type: string
+      created_at:
+        type: string
+      email:
+        type: string
+      first_name:
+        type: string
+      last_name:
+        type: string
+      password:
+        type: string
+      role:
+        type: string
+      updated_at:
+        type: string
+      user_id:
+        type: string
+    required:
+    - email
+    - first_name
+    - last_name
+    - password
+    type: object
+  users.UserResponse:
+    properties:
+      avatar:
+        type: string
+      created_at:
+        type: string
+      email:
+        type: string
+      first_name:
+        type: string
+      last_name:
+        type: string
+      role:
+        type: string
+      updated_at:
+        type: string
+      user_id:
+        type: string
+    required:
+    - email
+    - first_name
+    - last_name
+    type: object
+info:
+  contact: {}
+paths:
+  /user/{id}:
+    get:
+      consumes:
+      - application/json
+      description: Get user data by id
+      parameters:
+      - description: user uuid
+        in: path
+        name: id
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/users.UserResponse'
+      summary: Get user by id
+      tags:
+      - UserDO
+  /user/{id}/avatar:
+    put:
+      consumes:
+      - multipart/form-data
+      description: Upload user avatar image
+      parameters:
+      - description: user uuid
+        in: path
+        name: id
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/users.UserResponse'
+      summary: Update user avatar
+      tags:
+      - UserDO
+  /user/csrf:
+    get:
+      consumes:
+      - application/json
+      description: Get csrf token, required session
+      produces:
+      - application/json
+      responses:
+        "204":
+          description: ""
+      summary: Get csrf token
+      tags:
+      - UserDO
+  /user/login:
+    post:
+      consumes:
+      - application/json
+      description: login user, returns user data and session
+      parameters:
+      - description: email and password
+        in: body
+        name: data
+        required: true
+        schema:
+          $ref: '#/definitions/users.Login'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/users.UserResponse'
+      summary: Login user
+      tags:
+      - UserDO
+  /user/logout:
+    post:
+      consumes:
+      - application/json
+      description: Logout user, return no content
+      produces:
+      - application/json
+      responses:
+        "204":
+          description: ""
+      summary: Logout user
+      tags:
+      - UserDO
+  /user/me:
+    get:
+      consumes:
+      - application/json
+      description: Get current user data, required session cookie
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/users.UserResponse'
+      summary: Get current user data
+      tags:
+      - UserDO
+  /user/register:
+    post:
+      consumes:
+      - application/json
+      description: register new user account, returns user data and session
+      parameters:
+      - description: user data
+        in: body
+        name: data
+        required: true
+        schema:
+          $ref: '#/definitions/users.UserDO'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/users.UserResponse'
+      summary: Register new user
+      tags:
+      - UserDO
+swagger: "2.0"

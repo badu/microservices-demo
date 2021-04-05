@@ -1,0 +1,79 @@
+GRPCServer:
+  AppVersion: 1.0.0
+  Port: ":5001"
+  CookieLifeTime: 360
+  CsrfExpire: 15
+  SessionExpire: 60
+  SessionID: "SessionID"
+  Mode: "Development"
+  Timeout: 15
+  ReadTimeout: 5
+  WriteTimeout: 5
+  MaxConnectionIdle: 5
+  MaxConnectionAge: 5
+  SessionPrefix: "session"
+  CSRFPrefix: "csrf"
+
+GRCP:
+  SessionServicePort: ":5000"
+  HotelsServicePort: ":7075"
+  UserServicePort: ""
+  CommentsServicePort: ""
+  ImagesServicePort: ""
+
+HttpServer:
+  AppVersion: 1.0.0
+  Port: ":8081"
+  PprofPort: ":8100"
+  Timeout: 15
+  ReadTimeout: 5
+  WriteTimeout: 5
+  CookieLifeTime: 44640
+  SessionCookieName: "session_token"
+
+RabbitMQ:
+  Host: localhost
+  Port: 5672
+  User: guest
+  Password: guest
+  Exchange: emails-exchange
+  Queue: emails-queue
+  RoutingKey: emails-routing-key
+  ConsumerTag: emails-consumer
+  WorkerPoolSize: 24
+
+Logger:
+  Development: true
+  DisableCaller: false
+  DisableStacktrace: false
+  Encoding: json
+  Level: info
+
+Postgres:
+  PostgresqlHost: localhost
+  PostgresqlPort: 5433
+  PostgresqlUser: postgres
+  PostgresqlPassword: postgres
+  PostgresqlDbname: users
+  PostgresqlSslmode: "disable"
+  PgDriver: pgx
+
+Redis:
+  RedisAddr: localhost:6379
+  RedisPassword:
+  RedisDb: 0
+  RedisDefaultDB: 0
+  MinIdleConn: 200
+  PoolSize: 12000
+  PoolTimeout: 240
+  Password: ""
+  DB: 0
+
+Metrics:
+  Url: 0.0.0.0:7071
+  ServiceName: Gateway
+
+Jaeger:
+  Host: localhost:6831
+  ServiceName: Gateway
+  LogSpans: false

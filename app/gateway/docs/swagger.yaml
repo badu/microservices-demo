@@ -1,0 +1,314 @@
+definitions:
+  comments.Comment:
+    properties:
+      comment_id:
+        type: string
+      created_at:
+        type: string
+      hotel_id:
+        type: string
+      message:
+        type: string
+      photos:
+        items:
+          type: string
+        type: array
+      rating:
+        type: number
+      updated_at:
+        type: string
+      user_id:
+        type: string
+    required:
+    - message
+    - rating
+    type: object
+  comments.CommentFull:
+    properties:
+      comment_id:
+        type: string
+      createdAt:
+        type: string
+      hotel_id:
+        type: string
+      message:
+        type: string
+      photos:
+        items:
+          type: string
+        type: array
+      rating:
+        type: number
+      updatedAt:
+        type: string
+      user:
+        $ref: '#/definitions/users.CommentUser'
+    type: object
+  comments.List:
+    properties:
+      comments:
+        items:
+          $ref: '#/definitions/comments.CommentFull'
+        type: array
+      hasMore:
+        type: boolean
+      page:
+        type: integer
+      size:
+        type: integer
+      totalCount:
+        type: integer
+      totalPages:
+        type: integer
+    type: object
+  hotels.Hotel:
+    properties:
+      city:
+        type: string
+      comments_count:
+        type: integer
+      country:
+        type: string
+      created_at:
+        type: string
+      description:
+        type: string
+      email:
+        type: string
+      hotel_id:
+        type: string
+      image:
+        type: string
+      latitude:
+        type: number
+      location:
+        type: string
+      longitude:
+        type: number
+      name:
+        type: string
+      photos:
+        items:
+          type: string
+        type: array
+      rating:
+        type: number
+      updated_at:
+        type: string
+    required:
+    - city
+    - country
+    - description
+    - email
+    - location
+    - name
+    - rating
+    type: object
+  hotels.ListResult:
+    properties:
+      hasMore:
+        type: boolean
+      hotels:
+        items:
+          $ref: '#/definitions/hotels.Hotel'
+        type: array
+      page:
+        type: integer
+      size:
+        type: integer
+      totalCount:
+        type: integer
+      totalPages:
+        type: integer
+    type: object
+  users.CommentUser:
+    properties:
+      avatar:
+        type: string
+      email:
+        type: string
+      firstName:
+        type: string
+      lastName:
+        type: string
+      role:
+        type: string
+      userId:
+        type: string
+    type: object
+info:
+  contact: {}
+paths:
+  /comments:
+    post:
+      consumes:
+      - application/json
+      description: Create new single comment
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/comments.Comment'
+      summary: Create new comment
+      tags:
+      - Comments
+  /comments/{comment_id}:
+    get:
+      consumes:
+      - application/json
+      description: Get comment by uuid
+      parameters:
+      - description: comment uuid
+        in: query
+        name: comment_id
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/comments.Comment'
+      summary: Get comment by id
+      tags:
+      - Comments
+    put:
+      consumes:
+      - application/json
+      description: Update comment by uuid
+      parameters:
+      - description: comment uuid
+        in: query
+        name: comment_id
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/comments.Comment'
+      summary: Update comment by id
+      tags:
+      - Comments
+  /comments/hotel/{hotel_id}:
+    get:
+      consumes:
+      - application/json
+      description: Get comments list by hotel uuid
+      parameters:
+      - description: hotel uuid
+        in: query
+        name: hotel_id
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/comments.List'
+      summary: Get comments by hotel id
+      tags:
+      - Comments
+  /hotels:
+    get:
+      consumes:
+      - application/json
+      description: Get hotels list with pagination using page and size query parameters
+      parameters:
+      - description: page number
+        in: query
+        name: page
+        type: integer
+      - description: number of elements
+        in: query
+        name: size
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/hotels.ListResult'
+      summary: Get hotels list new user
+      tags:
+      - Hotels
+    post:
+      consumes:
+      - application/json
+      description: Create new hotel instance
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/hotels.Hotel'
+      summary: Create new hotel
+      tags:
+      - Hotels
+  /hotels/{hotel_id}:
+    get:
+      consumes:
+      - application/json
+      description: Get single hotel by uuid
+      parameters:
+      - description: hotel uuid
+        in: query
+        name: hotel_id
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/hotels.Hotel'
+      summary: Get hotel by id
+      tags:
+      - Hotels
+    put:
+      consumes:
+      - application/json
+      description: Update single hotel data
+      parameters:
+      - description: Hotel UUID
+        in: path
+        name: hotel_id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/hotels.Hotel'
+      summary: Update hotel data
+      tags:
+      - Hotels
+  /hotels/{id}/image:
+    put:
+      consumes:
+      - multipart/form-data
+      description: Upload hotel logo image
+      parameters:
+      - description: hotel uuid
+        in: query
+        name: hotel_id
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/hotels.Hotel'
+      summary: Upload hotel image
+      tags:
+      - Hotels
+swagger: "2.0"
