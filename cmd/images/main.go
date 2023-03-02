@@ -4,13 +4,14 @@ import (
 	"log"
 	"os"
 
+	"github.com/opentracing/opentracing-go"
+
 	"github.com/badu/microservices-demo/app/images"
 	"github.com/badu/microservices-demo/pkg/config"
 	"github.com/badu/microservices-demo/pkg/jaeger"
 	"github.com/badu/microservices-demo/pkg/logger"
 	"github.com/badu/microservices-demo/pkg/postgres"
 	"github.com/badu/microservices-demo/pkg/rabbitmq"
-	"github.com/opentracing/opentracing-go"
 )
 
 func main() {
@@ -56,6 +57,6 @@ func main() {
 	s3 := images.NewS3Session(cfg)
 	appLogger.Infof("AWS S3 Connected : %v", s3.Client.APIVersion)
 
-	server := images.NewServer(appLogger, cfg, tracer, pgxConn, s3)
-	appLogger.Fatal(server.Run())
+	app := images.NewApplication(&appLogger, cfg, tracer, pgxConn, s3)
+	appLogger.Fatal(app.Run())
 }

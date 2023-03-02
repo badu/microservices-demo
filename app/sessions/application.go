@@ -8,7 +8,6 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/badu/microservices-demo/pkg/grpc_client"
 	"github.com/go-redis/redis/v8"
 	"github.com/labstack/echo/v4"
 	"github.com/opentracing/opentracing-go"
@@ -16,6 +15,8 @@ import (
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/keepalive"
 	"google.golang.org/grpc/reflection"
+
+	"github.com/badu/microservices-demo/pkg/grpc_client"
 
 	grpcRecovery "github.com/grpc-ecosystem/go-grpc-middleware/recovery"
 	grpcCtxTags "github.com/grpc-ecosystem/go-grpc-middleware/tags"
@@ -26,25 +27,25 @@ import (
 	"github.com/badu/microservices-demo/pkg/logger"
 )
 
-type Server struct {
+type Application struct {
 	logger    logger.Logger
 	cfg       *config.Config
 	redisConn *redis.Client
 	tracer    opentracing.Tracer
 }
 
-func NewSessionsServer(logger logger.Logger, cfg *config.Config, redisConn *redis.Client, tracer opentracing.Tracer) *Server {
-	return &Server{logger: logger, cfg: cfg, redisConn: redisConn, tracer: tracer}
+func NewApplication(logger logger.Logger, cfg *config.Config, redisConn *redis.Client, tracer opentracing.Tracer) Application {
+	return Application{logger: logger, cfg: cfg, redisConn: redisConn, tracer: tracer}
 }
 
-func (s *Server) Run() error {
+func (s *Application) Run() error {
 	ctx, cancel := context.WithCancel(context.Background())
 
 	im := grpc_client.NewClientMiddleware(s.logger, s.cfg, s.tracer)
-	sessionRedisRepo := NewSessionRedisRepo(s.redisConn, s.cfg.GRPCServer.SessionPrefix, time.Duration(s.cfg.GRPCServer.SessionExpire)*time.Minute)
-	service := NewSessionUseCase(sessionRedisRepo)
-	csrfRepository := NewCsrfRepository(s.redisConn, s.cfg.GRPCServer.CSRFPrefix, time.Duration(s.cfg.GRPCServer.CsrfExpire)*time.Minute)
-	csrfService := NewCSRFService(csrfRepository)
+	repository := NewRepository(s.redisConn, s.cfg.GRPCServer.SessionPrefix, time.Duration(s.cfg.GRPCServer.SessionExpire)*time.Minute)
+	service := NewService(&repository)
+	csrfRepository := NewCSRFRepository(s.redisConn, s.cfg.GRPCServer.CSRFPrefix, time.Duration(s.cfg.GRPCServer.CsrfExpire)*time.Minute)
+	csrfService := NewCSRFService(&csrfRepository)
 
 	router := echo.New()
 	router.GET("/metrics", echo.WrapHandler(promhttp.Handler()))
@@ -81,8 +82,8 @@ func (s *Server) Run() error {
 		),
 	)
 
-	server := NewServer(s.logger, service, csrfService)
-	RegisterAuthorizationServiceServer(grpcServer, server)
+	server := NewServer(s.logger, &service, &csrfService)
+	RegisterAuthorizationServiceServer(grpcServer, &server)
 	grpcPrometheus.Register(grpcServer)
 
 	go func() {

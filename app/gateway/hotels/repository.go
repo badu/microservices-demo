@@ -12,33 +12,26 @@ import (
 	uuid "github.com/satori/go.uuid"
 )
 
-type Repository interface {
-	GetHotelByID(ctx context.Context, hotelID uuid.UUID) (*Hotel, error)
-	SetHotel(ctx context.Context, hotel *Hotel) error
-	DeleteHotel(ctx context.Context, hotelID uuid.UUID) error
-}
-
 const (
 	prefix     = "comments:"
 	expiration = time.Second * 3600
 )
 
-type repositoryImpl struct {
+type RepositoryImpl struct {
 	redisConn *redis.Client
 }
 
-func NewRepository(redisConn *redis.Client) *repositoryImpl {
-	return &repositoryImpl{redisConn: redisConn}
+func NewRepository(redisConn *redis.Client) RepositoryImpl {
+	return RepositoryImpl{redisConn: redisConn}
 }
 
-// GetHotelByID
-func (h *repositoryImpl) GetHotelByID(ctx context.Context, hotelID uuid.UUID) (*Hotel, error) {
-	span, ctx := opentracing.StartSpanFromContext(ctx, "repositoryImpl.GetHotelByID")
+func (h *RepositoryImpl) GetHotelByID(ctx context.Context, hotelID uuid.UUID) (*Hotel, error) {
+	span, ctx := opentracing.StartSpanFromContext(ctx, "RepositoryImpl.GetHotelByID")
 	defer span.Finish()
 
 	result, err := h.redisConn.Get(ctx, h.createKey(hotelID)).Bytes()
 	if err != nil {
-		return nil, errors.Wrap(err, "repositoryImpl.GetHotelByID")
+		return nil, errors.Wrap(err, "RepositoryImpl.GetHotelByID")
 	}
 
 	var res Hotel
@@ -49,35 +42,33 @@ func (h *repositoryImpl) GetHotelByID(ctx context.Context, hotelID uuid.UUID) (*
 	return &res, nil
 }
 
-// SetHotel
-func (h *repositoryImpl) SetHotel(ctx context.Context, hotel *Hotel) error {
-	span, ctx := opentracing.StartSpanFromContext(ctx, "repositoryImpl.SetHotel")
+func (h *RepositoryImpl) SetHotel(ctx context.Context, hotel *Hotel) error {
+	span, ctx := opentracing.StartSpanFromContext(ctx, "RepositoryImpl.SetHotel")
 	defer span.Finish()
 
 	hotelBytes, err := json.Marshal(hotel)
 	if err != nil {
-		return errors.Wrap(err, "repositoryImpl.Marshal")
+		return errors.Wrap(err, "RepositoryImpl.Marshal")
 	}
 
 	if err := h.redisConn.SetEX(ctx, h.createKey(hotel.HotelID), string(hotelBytes), expiration).Err(); err != nil {
-		return errors.Wrap(err, "repositoryImpl.SetEX")
+		return errors.Wrap(err, "RepositoryImpl.SetEX")
 	}
 
 	return nil
 }
 
-// DeleteHotel
-func (h *repositoryImpl) DeleteHotel(ctx context.Context, hotelID uuid.UUID) error {
-	span, ctx := opentracing.StartSpanFromContext(ctx, "repositoryImpl.DeleteHotel")
+func (h *RepositoryImpl) DeleteHotel(ctx context.Context, hotelID uuid.UUID) error {
+	span, ctx := opentracing.StartSpanFromContext(ctx, "RepositoryImpl.DeleteHotel")
 	defer span.Finish()
 
 	if err := h.redisConn.Del(ctx, h.createKey(hotelID)).Err(); err != nil {
-		return errors.Wrap(err, "repositoryImpl.DeleteHotel.Del")
+		return errors.Wrap(err, "RepositoryImpl.DeleteHotel.Del")
 	}
 
 	return nil
 }
 
-func (h *repositoryImpl) createKey(hotelID uuid.UUID) string {
+func (h *RepositoryImpl) createKey(hotelID uuid.UUID) string {
 	return fmt.Sprintf("%s: %s", prefix, hotelID.String())
 }

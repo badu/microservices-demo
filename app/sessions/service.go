@@ -7,34 +7,34 @@ import (
 	uuid "github.com/satori/go.uuid"
 )
 
-type Service interface {
+type Repository interface {
 	CreateSession(ctx context.Context, userID uuid.UUID) (*SessionDO, error)
 	GetSessionByID(ctx context.Context, sessID string) (*SessionDO, error)
 	DeleteSession(ctx context.Context, sessID string) error
 }
 
-type serviceImpl struct {
-	sessRepo Repository
+type ServiceImpl struct {
+	repo Repository
 }
 
-func NewSessionUseCase(sessRepo Repository) *serviceImpl {
-	return &serviceImpl{sessRepo: sessRepo}
+func NewService(sessRepo Repository) ServiceImpl {
+	return ServiceImpl{repo: sessRepo}
 }
 
-func (s *serviceImpl) CreateSession(ctx context.Context, userID uuid.UUID) (*SessionDO, error) {
-	span, ctx := opentracing.StartSpanFromContext(ctx, "serviceImpl.CreateSession")
+func (s *ServiceImpl) CreateSession(ctx context.Context, userID uuid.UUID) (*SessionDO, error) {
+	span, ctx := opentracing.StartSpanFromContext(ctx, "ServiceImpl.CreateSession")
 	defer span.Finish()
-	return s.sessRepo.CreateSession(ctx, userID)
+	return s.repo.CreateSession(ctx, userID)
 }
 
-func (s *serviceImpl) GetSessionByID(ctx context.Context, sessID string) (*SessionDO, error) {
-	span, ctx := opentracing.StartSpanFromContext(ctx, "serviceImpl.GetSessionByID")
+func (s *ServiceImpl) GetSessionByID(ctx context.Context, sessID string) (*SessionDO, error) {
+	span, ctx := opentracing.StartSpanFromContext(ctx, "ServiceImpl.GetSessionByID")
 	defer span.Finish()
-	return s.sessRepo.GetSessionByID(ctx, sessID)
+	return s.repo.GetSessionByID(ctx, sessID)
 }
 
-func (s *serviceImpl) DeleteSession(ctx context.Context, sessID string) error {
+func (s *ServiceImpl) DeleteSession(ctx context.Context, sessID string) error {
 	span, ctx := opentracing.StartSpanFromContext(ctx, "DeleteSession.GetSessionByID")
 	defer span.Finish()
-	return s.sessRepo.DeleteSession(ctx, sessID)
+	return s.repo.DeleteSession(ctx, sessID)
 }

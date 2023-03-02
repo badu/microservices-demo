@@ -2,6 +2,7 @@ package hotels
 
 import (
 	"bytes"
+	"context"
 	"io"
 	"mime/multipart"
 	"net/http"
@@ -13,27 +14,26 @@ import (
 	"github.com/opentracing/opentracing-go"
 	uuid "github.com/satori/go.uuid"
 
-	"github.com/badu/microservices-demo/app/gateway/middlewares"
+	"github.com/badu/microservices-demo/app/gateway/users"
 	"github.com/badu/microservices-demo/pkg/config"
 	httpErrors "github.com/badu/microservices-demo/pkg/http_errors"
 	"github.com/badu/microservices-demo/pkg/logger"
 )
 
-type Server interface {
-	CreateHotel() echo.HandlerFunc
-	UpdateHotel() echo.HandlerFunc
-	GetHotelByID() echo.HandlerFunc
-	GetHotels() echo.HandlerFunc
-	UploadImage() echo.HandlerFunc
+type Service interface {
+	GetHotels(ctx context.Context, page, size int64) (*ListResult, error)
+	GetHotelByID(ctx context.Context, hotelID uuid.UUID) (*Hotel, error)
+	UpdateHotel(ctx context.Context, hotel *Hotel) (*Hotel, error)
+	CreateHotel(ctx context.Context, hotel *Hotel) (*Hotel, error)
+	UploadImage(ctx context.Context, data []byte, contentType, hotelID string) error
 }
 
-type serverImpl struct {
+type ServerImpl struct {
 	cfg      *config.Config
 	group    *echo.Group
 	logger   logger.Logger
 	validate *validator.Validate
 	service  Service
-	mw       *middlewares.MiddlewareManager
 }
 
 func NewServer(
@@ -42,9 +42,8 @@ func NewServer(
 	logger logger.Logger,
 	validate *validator.Validate,
 	service Service,
-	mw *middlewares.MiddlewareManager,
-) *serverImpl {
-	return &serverImpl{cfg: cfg, group: group, logger: logger, validate: validate, service: service, mw: mw}
+) ServerImpl {
+	return ServerImpl{cfg: cfg, group: group, logger: logger, validate: validate, service: service}
 }
 
 // Register CreateHotel
@@ -56,9 +55,9 @@ func NewServer(
 // @Success 201 {object} Hotel
 // @Router /hotels [post]
 // @BasePath /api/v1
-func (h *serverImpl) CreateHotel() echo.HandlerFunc {
+func (h *ServerImpl) CreateHotel() echo.HandlerFunc {
 	return func(c echo.Context) error {
-		span, ctx := opentracing.StartSpanFromContext(c.Request().Context(), "serverImpl.CreateHotel")
+		span, ctx := opentracing.StartSpanFromContext(c.Request().Context(), "ServerImpl.CreateHotel")
 		defer span.Finish()
 
 		var hotelReq Hotel
@@ -92,9 +91,9 @@ func (h *serverImpl) CreateHotel() echo.HandlerFunc {
 // @Success 200 {object} Hotel
 // @Router /hotels/{hotel_id} [put]
 // @BasePath /api/v1
-func (h *serverImpl) UpdateHotel() echo.HandlerFunc {
+func (h *ServerImpl) UpdateHotel() echo.HandlerFunc {
 	return func(c echo.Context) error {
-		span, ctx := opentracing.StartSpanFromContext(c.Request().Context(), "serverImpl.UpdateHotel")
+		span, ctx := opentracing.StartSpanFromContext(c.Request().Context(), "ServerImpl.UpdateHotel")
 		defer span.Finish()
 
 		hotelUUID, err := uuid.FromString(c.QueryParam("hotel_id"))
@@ -135,9 +134,9 @@ func (h *serverImpl) UpdateHotel() echo.HandlerFunc {
 // @Success 200 {object} Hotel
 // @Router /hotels/{hotel_id} [get]
 // @BasePath /api/v1
-func (h *serverImpl) GetHotelByID() echo.HandlerFunc {
+func (h *ServerImpl) GetHotelByID() echo.HandlerFunc {
 	return func(c echo.Context) error {
-		span, ctx := opentracing.StartSpanFromContext(c.Request().Context(), "serverImpl.GetHotelByID")
+		span, ctx := opentracing.StartSpanFromContext(c.Request().Context(), "ServerImpl.GetHotelByID")
 		defer span.Finish()
 
 		hotelUUID, err := uuid.FromString(c.QueryParam("hotel_id"))
@@ -167,9 +166,9 @@ func (h *serverImpl) GetHotelByID() echo.HandlerFunc {
 // @Success 200 {object} ListResult
 // @Router /hotels [get]
 // @BasePath /api/v1
-func (h *serverImpl) GetHotels() echo.HandlerFunc {
+func (h *ServerImpl) GetHotels() echo.HandlerFunc {
 	return func(c echo.Context) error {
-		span, ctx := opentracing.StartSpanFromContext(c.Request().Context(), "serverImpl.GetHotels")
+		span, ctx := opentracing.StartSpanFromContext(c.Request().Context(), "ServerImpl.GetHotels")
 		defer span.Finish()
 
 		page, err := strconv.Atoi(c.QueryParam("page"))
@@ -203,12 +202,12 @@ func (h *serverImpl) GetHotels() echo.HandlerFunc {
 // @Success 200 {object} Hotel
 // @Router /hotels/{id}/image [put]
 // @BasePath /api/v1
-func (h *serverImpl) UploadImage() echo.HandlerFunc {
+func (h *ServerImpl) UploadImage() echo.HandlerFunc {
 	bufferPool := &sync.Pool{New: func() interface{} {
 		return &bytes.Buffer{}
 	}}
 	return func(c echo.Context) error {
-		span, ctx := opentracing.StartSpanFromContext(c.Request().Context(), "serverImpl.UploadImage")
+		span, ctx := opentracing.StartSpanFromContext(c.Request().Context(), "ServerImpl.UploadImage")
 		defer span.Finish()
 
 		hotelUUID, err := uuid.FromString(c.QueryParam("hotel_id"))
@@ -258,12 +257,12 @@ func (h *serverImpl) UploadImage() echo.HandlerFunc {
 	}
 }
 
-func (h *serverImpl) MapRoutes() {
+func (h *ServerImpl) MapRoutes(mw *users.SessionMiddleware) {
 	h.group.GET("", h.GetHotels())
 	h.group.GET("/:hotel_id", h.GetHotelByID())
-	h.group.POST("", h.CreateHotel(), h.mw.SessionMiddleware)
-	h.group.PUT("/:hotel_id", h.UpdateHotel(), h.mw.SessionMiddleware)
-	h.group.PUT("/:hotel_id/image", h.UploadImage(), h.mw.SessionMiddleware)
+	h.group.POST("", h.CreateHotel(), mw.SessionMiddleware)
+	h.group.PUT("/:hotel_id", h.UpdateHotel(), mw.SessionMiddleware)
+	h.group.PUT("/:hotel_id/image", h.UploadImage(), mw.SessionMiddleware)
 }
 
 const (

@@ -3,62 +3,67 @@ package comments
 import (
 	"context"
 
-	"github.com/badu/microservices-demo/app/gateway/users"
-	"github.com/badu/microservices-demo/pkg/config"
-	"github.com/badu/microservices-demo/pkg/grpc_client"
 	"github.com/go-redis/redis/v8"
 	"github.com/opentracing/opentracing-go"
 	"github.com/pkg/errors"
 	uuid "github.com/satori/go.uuid"
+	"google.golang.org/grpc"
 
 	"github.com/badu/microservices-demo/app/comments"
-	"github.com/badu/microservices-demo/app/gateway/middlewares"
+	"github.com/badu/microservices-demo/app/gateway/users"
 	httpErrors "github.com/badu/microservices-demo/pkg/http_errors"
 	"github.com/badu/microservices-demo/pkg/logger"
 )
 
-type Service interface {
-	CreateComment(ctx context.Context, comment *Comment) (*Comment, error)
-	GetCommByID(ctx context.Context, commentID uuid.UUID) (*Comment, error)
-	UpdateComment(ctx context.Context, comment *Comment) (*Comment, error)
-	GetByHotelID(ctx context.Context, hotelID uuid.UUID, page, size int64) (*List, error)
+type Repository interface {
+	CommentByID(ctx context.Context, commentID uuid.UUID) (*Comment, error)
+	SetComment(ctx context.Context, comment *Comment) error
+	DeleteComment(ctx context.Context, commentID uuid.UUID) error
 }
 
-type serviceImpl struct {
-	logger                  logger.Logger
-	grpcCommentsServicePort string
-	repository              Repository
-	mw                      *grpc_client.ClientMiddleware
+type ServiceImpl struct {
+	logger            logger.Logger
+	repository        Repository
+	grpcClientFactory func(ctx context.Context) (*grpc.ClientConn, comments.CommentsServiceClient, error)
 }
 
-func NewService(logger logger.Logger, cfg *config.Config, repository Repository, tracer opentracing.Tracer) *serviceImpl {
-	return &serviceImpl{logger: logger, repository: repository, grpcCommentsServicePort: cfg.GRPC.CommentsServicePort, mw: grpc_client.NewClientMiddleware(logger, cfg, tracer)}
+func NewService(
+	logger logger.Logger,
+	repository Repository,
+	grpcClientFactory func(ctx context.Context) (*grpc.ClientConn, comments.CommentsServiceClient, error),
+) ServiceImpl {
+	return ServiceImpl{
+		logger:            logger,
+		repository:        repository,
+		grpcClientFactory: grpcClientFactory,
+	}
 }
 
-func (s *serviceImpl) CreateComment(ctx context.Context, comment *Comment) (*Comment, error) {
-	span, ctx := opentracing.StartSpanFromContext(ctx, "serviceImpl.CreateComment")
+func (s *ServiceImpl) CreateComment(ctx context.Context, comment *Comment) (*Comment, error) {
+	span, ctx := opentracing.StartSpanFromContext(ctx, "ServiceImpl.CreateComment")
 	defer span.Finish()
 
-	ctxUser, ok := ctx.Value(middlewares.RequestCtxUser{}).(*users.UserResponse)
+	ctxUser, ok := ctx.Value(users.RequestCtxUser{}).(*users.UserResponse)
 	if !ok || ctxUser == nil {
 		return nil, errors.Wrap(httpErrors.Unauthorized, "ctx.Value user")
 	}
 
-	conn, err := grpc_client.NewGRPCClientServiceConn(ctx, s.mw, s.grpcCommentsServicePort)
+	conn, client, err := s.grpcClientFactory(ctx)
 	if err != nil {
-		return nil, errors.Wrap(err, "serviceImpl.CreateComment")
+		return nil, errors.Wrap(err, "ServiceImpl.CreateComment")
 	}
 	defer conn.Close()
 
-	client := comments.NewCommentsServiceClient(conn)
-
-	commentRes, err := client.CreateComment(ctx, &comments.CreateCommentReq{
-		HotelID: comment.HotelID.String(),
-		UserID:  ctxUser.UserID.String(),
-		Message: comment.Message,
-		Photos:  comment.Photos,
-		Rating:  comment.Rating,
-	})
+	commentRes, err := client.CreateComment(
+		ctx,
+		&comments.CreateCommentReq{
+			HotelID: comment.HotelID.String(),
+			UserID:  ctxUser.UserID.String(),
+			Message: comment.Message,
+			Photos:  comment.Photos,
+			Rating:  comment.Rating,
+		},
+	)
 	if err != nil {
 		return nil, errors.Wrap(err, "hotelsService.CreateHotel")
 	}
@@ -71,8 +76,8 @@ func (s *serviceImpl) CreateComment(ctx context.Context, comment *Comment) (*Com
 	return comm, nil
 }
 
-func (s *serviceImpl) GetCommByID(ctx context.Context, commentID uuid.UUID) (*Comment, error) {
-	span, ctx := opentracing.StartSpanFromContext(ctx, "serviceImpl.GetCommByID")
+func (s *ServiceImpl) GetCommByID(ctx context.Context, commentID uuid.UUID) (*Comment, error) {
+	span, ctx := opentracing.StartSpanFromContext(ctx, "ServiceImpl.GetCommByID")
 	defer span.Finish()
 
 	cacheComm, err := s.repository.CommentByID(ctx, commentID)
@@ -85,13 +90,12 @@ func (s *serviceImpl) GetCommByID(ctx context.Context, commentID uuid.UUID) (*Co
 		return cacheComm, nil
 	}
 
-	conn, err := grpc_client.NewGRPCClientServiceConn(ctx, s.mw, s.grpcCommentsServicePort)
+	conn, client, err := s.grpcClientFactory(ctx)
 	if err != nil {
-		return nil, errors.Wrap(err, "serviceImpl.GetCommByID")
+		return nil, errors.Wrap(err, "ServiceImpl.GetCommByID")
 	}
 	defer conn.Close()
 
-	client := comments.NewCommentsServiceClient(conn)
 	commByID, err := client.GetCommByID(ctx, &comments.GetCommByIDReq{CommentID: commentID.String()})
 	if err != nil {
 		return nil, errors.Wrap(err, "commService.GetCommByID")
@@ -109,11 +113,11 @@ func (s *serviceImpl) GetCommByID(ctx context.Context, commentID uuid.UUID) (*Co
 	return comm, nil
 }
 
-func (s *serviceImpl) UpdateComment(ctx context.Context, comment *Comment) (*Comment, error) {
-	span, ctx := opentracing.StartSpanFromContext(ctx, "serviceImpl.CreateComment")
+func (s *ServiceImpl) UpdateComment(ctx context.Context, comment *Comment) (*Comment, error) {
+	span, ctx := opentracing.StartSpanFromContext(ctx, "ServiceImpl.CreateComment")
 	defer span.Finish()
 
-	ctxUser, ok := ctx.Value(middlewares.RequestCtxUser{}).(*users.UserResponse)
+	ctxUser, ok := ctx.Value(users.RequestCtxUser{}).(*users.UserResponse)
 	if !ok || ctxUser == nil {
 		return nil, errors.Wrap(httpErrors.Unauthorized, "ctx.Value user")
 	}
@@ -122,13 +126,12 @@ func (s *serviceImpl) UpdateComment(ctx context.Context, comment *Comment) (*Com
 		return nil, errors.Wrap(httpErrors.WrongCredentials, "user is not owner")
 	}
 
-	conn, err := grpc_client.NewGRPCClientServiceConn(ctx, s.mw, s.grpcCommentsServicePort)
+	conn, client, err := s.grpcClientFactory(ctx)
 	if err != nil {
-		return nil, errors.Wrap(err, "serviceImpl.UpdateComment")
+		return nil, errors.Wrap(err, "ServiceImpl.UpdateComment")
 	}
 	defer conn.Close()
 
-	client := comments.NewCommentsServiceClient(conn)
 	commRes, err := client.UpdateComment(ctx, &comments.UpdateCommReq{
 		CommentID: comment.CommentID.String(),
 		Message:   comment.Message,
@@ -151,17 +154,16 @@ func (s *serviceImpl) UpdateComment(ctx context.Context, comment *Comment) (*Com
 	return comm, nil
 }
 
-func (s *serviceImpl) GetByHotelID(ctx context.Context, hotelID uuid.UUID, page, size int64) (*List, error) {
-	span, ctx := opentracing.StartSpanFromContext(ctx, "serviceImpl.GetByHotelID")
+func (s *ServiceImpl) GetByHotelID(ctx context.Context, hotelID uuid.UUID, page, size int64) (*List, error) {
+	span, ctx := opentracing.StartSpanFromContext(ctx, "ServiceImpl.GetByHotelID")
 	defer span.Finish()
 
-	conn, err := grpc_client.NewGRPCClientServiceConn(ctx, s.mw, s.grpcCommentsServicePort)
+	conn, client, err := s.grpcClientFactory(ctx)
 	if err != nil {
-		return nil, errors.Wrap(err, "serviceImpl.GetByHotelID")
+		return nil, errors.Wrap(err, "ServiceImpl.GetByHotelID")
 	}
 	defer conn.Close()
 
-	client := comments.NewCommentsServiceClient(conn)
 	res, err := client.GetByHotelID(ctx, &comments.GetByHotelReq{
 		HotelID: hotelID.String(),
 		Page:    page,
@@ -173,11 +175,11 @@ func (s *serviceImpl) GetByHotelID(ctx context.Context, hotelID uuid.UUID, page,
 
 	commList := make([]*CommentFull, 0, len(res.Comments))
 	for _, comment := range res.Comments {
-		comm, err := FullFromProto(comment)
-		if err != nil {
+		if comm, err := FullFromProto(comment); err != nil {
 			return nil, errors.Wrap(err, "FullFromProto")
+		} else {
+			commList = append(commList, comm)
 		}
-		commList = append(commList, comm)
 	}
 
 	return &List{

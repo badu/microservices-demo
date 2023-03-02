@@ -22,16 +22,15 @@ func NewClientMiddleware(logger logger.Logger, cfg *config.Config, tracer opentr
 	return &ClientMiddleware{logger: logger, cfg: cfg, tracer: tracer}
 }
 
-func (im *ClientMiddleware) Logger(ctx context.Context, req interface{}, info *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (resp interface{}, err error) {
+func (m *ClientMiddleware) Logger(ctx context.Context, req interface{}, info *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (interface{}, error) {
 	start := time.Now()
-	md, _ := metadata.FromIncomingContext(ctx)
-	reply, err := handler(ctx, req)
-	im.logger.Infof("Method: %s, Time: %v, Metadata: %v, Err: %v", info.FullMethod, time.Since(start), md, err)
-
-	return reply, err
+	meta, _ := metadata.FromIncomingContext(ctx)
+	result, err := handler(ctx, req)
+	m.logger.Infof("Method: %s, Time: %v, Metadata: %v, Err: %v", info.FullMethod, time.Since(start), meta, err)
+	return result, err
 }
 
-func (im *ClientMiddleware) GetInterceptor() func(
+func (m *ClientMiddleware) GetInterceptor() func(
 	ctx context.Context,
 	method string,
 	req interface{},
@@ -51,13 +50,12 @@ func (im *ClientMiddleware) GetInterceptor() func(
 	) error {
 		start := time.Now()
 		err := invoker(ctx, method, req, reply, cc, opts...)
-		im.logger.Infof("call=%v req=%#v reply=%#v time=%v err=%v",
+		m.logger.Infof("call=%v req=%#v reply=%#v time=%v err=%v",
 			method, req, reply, time.Since(start), err)
 		return err
 	}
 }
 
-// GetTracer
-func (im *ClientMiddleware) GetTracer() opentracing.Tracer {
-	return im.tracer
+func (m *ClientMiddleware) Tracer() opentracing.Tracer {
+	return m.tracer
 }

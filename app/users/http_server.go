@@ -9,36 +9,25 @@ import (
 	"sync"
 	"time"
 
-	"github.com/badu/microservices-demo/app/images"
-	"github.com/badu/microservices-demo/app/sessions"
 	"github.com/go-playground/validator/v10"
 	"github.com/labstack/echo/v4"
 	"github.com/opentracing/opentracing-go"
 	uuid "github.com/satori/go.uuid"
+
+	"github.com/badu/microservices-demo/app/images"
+	"github.com/badu/microservices-demo/app/sessions"
 
 	"github.com/badu/microservices-demo/pkg/config"
 	httpErrors "github.com/badu/microservices-demo/pkg/http_errors"
 	"github.com/badu/microservices-demo/pkg/logger"
 )
 
-type Server interface {
-	Register() echo.HandlerFunc
-	Login() echo.HandlerFunc
-	Logout() echo.HandlerFunc
-	Update() echo.HandlerFunc
-	UpdateAvatar() echo.HandlerFunc
-	Delete() echo.HandlerFunc
-	GetUserByID() echo.HandlerFunc
-	GetMe() echo.HandlerFunc
-	GetCSRFToken() echo.HandlerFunc
-}
-
 const (
 	csrfHeader  = "X-CSRF-Token"
 	maxFileSize = 1024 * 1024 * 10
 )
 
-type httpServer struct {
+type HTTPTransport struct {
 	cfg      *config.Config
 	group    *echo.Group
 	service  Service
@@ -54,8 +43,8 @@ func NewHTTPServer(
 	validate *validator.Validate,
 	cfg *config.Config,
 	mw *MiddlewareManager,
-) *httpServer {
-	return &httpServer{group: group, service: service, logger: logger, validate: validate, cfg: cfg, mw: mw}
+) HTTPTransport {
+	return HTTPTransport{group: group, service: service, logger: logger, validate: validate, cfg: cfg, mw: mw}
 }
 
 // Register godoc
@@ -68,7 +57,7 @@ func NewHTTPServer(
 // @Success 201 {object} UserResponse
 // @Router /user/register [post]
 // @BasePath /api/v1
-func (h *httpServer) Register() echo.HandlerFunc {
+func (h *HTTPTransport) Register() echo.HandlerFunc {
 	return func(c echo.Context) error {
 		span, ctx := opentracing.StartSpanFromContext(c.Request().Context(), "auth.Register")
 		defer span.Finish()
@@ -86,13 +75,13 @@ func (h *httpServer) Register() echo.HandlerFunc {
 
 		regUser, err := h.service.Register(ctx, &u)
 		if err != nil {
-			h.logger.Errorf("httpServer.Register.service.Register: %v", err)
+			h.logger.Errorf("HTTPTransport.Register.service.Register: %v", err)
 			return httpErrors.ErrorCtxResponse(c, err)
 		}
 
 		sessionID, err := h.service.CreateSession(ctx, regUser.UserID)
 		if err != nil {
-			h.logger.Errorf("httpServer.service.CreateSession: %v", err)
+			h.logger.Errorf("HTTPTransport.service.CreateSession: %v", err)
 			return httpErrors.ErrorCtxResponse(c, err)
 		}
 
@@ -118,7 +107,7 @@ func (h *httpServer) Register() echo.HandlerFunc {
 // @Success 200 {object} UserResponse
 // @Router /user/login [post]
 // @BasePath /api/v1
-func (h *httpServer) Login() echo.HandlerFunc {
+func (h *HTTPTransport) Login() echo.HandlerFunc {
 	return func(c echo.Context) error {
 		span, ctx := opentracing.StartSpanFromContext(c.Request().Context(), "user.Login")
 		defer span.Finish()
@@ -136,13 +125,13 @@ func (h *httpServer) Login() echo.HandlerFunc {
 
 		userResponse, err := h.service.Login(ctx, login)
 		if err != nil {
-			h.logger.Errorf("httpServer.service.Login: %v", err)
+			h.logger.Errorf("HTTPTransport.service.Login: %v", err)
 			return httpErrors.ErrorCtxResponse(c, err)
 		}
 
 		sessionID, err := h.service.CreateSession(ctx, userResponse.UserID)
 		if err != nil {
-			h.logger.Errorf("httpServer.Login.CreateSession: %v", err)
+			h.logger.Errorf("HTTPTransport.Login.CreateSession: %v", err)
 			return httpErrors.ErrorCtxResponse(c, err)
 		}
 
@@ -167,7 +156,7 @@ func (h *httpServer) Login() echo.HandlerFunc {
 // @Success 204 ""
 // @Router /user/logout [post]
 // @BasePath /api/v1
-func (h *httpServer) Logout() echo.HandlerFunc {
+func (h *HTTPTransport) Logout() echo.HandlerFunc {
 	return func(c echo.Context) error {
 		span, ctx := opentracing.StartSpanFromContext(c.Request().Context(), "user.Logout")
 		defer span.Finish()
@@ -175,15 +164,15 @@ func (h *httpServer) Logout() echo.HandlerFunc {
 		cookie, err := c.Cookie(h.cfg.HttpServer.SessionCookieName)
 		if err != nil {
 			if errors.Is(err, http.ErrNoCookie) {
-				h.logger.Errorf("httpServer.Logout.http.ErrNoCookie: %v", err)
+				h.logger.Errorf("HTTPTransport.Logout.http.ErrNoCookie: %v", err)
 				return httpErrors.ErrorCtxResponse(c, err)
 			}
-			h.logger.Errorf("httpServer.Logout.c.Cookie: %v", err)
+			h.logger.Errorf("HTTPTransport.Logout.c.Cookie: %v", err)
 			return httpErrors.ErrorCtxResponse(c, err)
 		}
 
 		if err := h.service.DeleteSession(ctx, cookie.Value); err != nil {
-			h.logger.Errorf("httpServer.service.DeleteSession: %v", err)
+			h.logger.Errorf("HTTPTransport.service.DeleteSession: %v", err)
 			return httpErrors.ErrorCtxResponse(c, err)
 		}
 
@@ -207,7 +196,7 @@ func (h *httpServer) Logout() echo.HandlerFunc {
 // @Success 200 {object} UserResponse
 // @Router /user/me [get]
 // @BasePath /api/v1
-func (h *httpServer) GetMe() echo.HandlerFunc {
+func (h *HTTPTransport) GetMe() echo.HandlerFunc {
 	return func(c echo.Context) error {
 		span, ctx := opentracing.StartSpanFromContext(c.Request().Context(), "user.GetMe")
 		defer span.Finish()
@@ -231,7 +220,7 @@ func (h *httpServer) GetMe() echo.HandlerFunc {
 // @Success 204 ""
 // @Router /user/csrf [get]
 // @BasePath /api/v1
-func (h *httpServer) GetCSRFToken() echo.HandlerFunc {
+func (h *HTTPTransport) GetCSRFToken() echo.HandlerFunc {
 	return func(c echo.Context) error {
 		span, ctx := opentracing.StartSpanFromContext(c.Request().Context(), "user.GetCSRFToken")
 		defer span.Finish()
@@ -263,7 +252,7 @@ func (h *httpServer) GetCSRFToken() echo.HandlerFunc {
 // @Success 200 {object} UserResponse
 // @Router /user/{id} [get]
 // @BasePath /api/v1
-func (h *httpServer) Update() echo.HandlerFunc {
+func (h *HTTPTransport) Update() echo.HandlerFunc {
 	return func(c echo.Context) error {
 		span, ctx := opentracing.StartSpanFromContext(c.Request().Context(), "user.Update")
 		defer span.Finish()
@@ -288,13 +277,13 @@ func (h *httpServer) Update() echo.HandlerFunc {
 		updUser.UserID = userUUID
 
 		if err := h.validate.StructCtx(ctx, updUser); err != nil {
-			h.logger.Errorf("httpServer.validate.StructCtx: %v", err)
+			h.logger.Errorf("HTTPTransport.validate.StructCtx: %v", err)
 			return httpErrors.ErrorCtxResponse(c, err)
 		}
 
 		userResponse, err := h.service.Update(ctx, &updUser)
 		if err != nil {
-			h.logger.Errorf("httpServer.service.Update: %v", err)
+			h.logger.Errorf("HTTPTransport.service.Update: %v", err)
 			return httpErrors.ErrorCtxResponse(c, err)
 		}
 
@@ -302,7 +291,7 @@ func (h *httpServer) Update() echo.HandlerFunc {
 	}
 }
 
-func (h *httpServer) Delete() echo.HandlerFunc {
+func (h *HTTPTransport) Delete() echo.HandlerFunc {
 	panic("implement me")
 }
 
@@ -316,7 +305,7 @@ func (h *httpServer) Delete() echo.HandlerFunc {
 // @Success 200 {object} UserResponse
 // @Router /user/{id} [get]
 // @BasePath /api/v1
-func (h *httpServer) GetUserByID() echo.HandlerFunc {
+func (h *HTTPTransport) GetUserByID() echo.HandlerFunc {
 	return func(c echo.Context) error {
 		span, ctx := opentracing.StartSpanFromContext(c.Request().Context(), "user.GetUserByID")
 		defer span.Finish()
@@ -353,7 +342,7 @@ func (h *httpServer) GetUserByID() echo.HandlerFunc {
 // @Success 200 {object} UserResponse
 // @Router /user/{id}/avatar [put]
 // @BasePath /api/v1
-func (h *httpServer) UpdateAvatar() echo.HandlerFunc {
+func (h *HTTPTransport) UpdateAvatar() echo.HandlerFunc {
 	bufferPool := &sync.Pool{New: func() interface{} {
 		return &bytes.Buffer{}
 	}}
@@ -415,7 +404,7 @@ func (h *httpServer) UpdateAvatar() echo.HandlerFunc {
 	}
 }
 
-func (h *httpServer) checkAvatar(file multipart.File) (string, error) {
+func (h *HTTPTransport) checkAvatar(file multipart.File) (string, error) {
 	fileHeader := make([]byte, maxFileSize)
 	ContentType := ""
 	if _, err := file.Read(fileHeader); err != nil {
@@ -445,7 +434,7 @@ func (h *httpServer) checkAvatar(file multipart.File) (string, error) {
 	return ContentType, nil
 }
 
-func (h *httpServer) MapUserRoutes() {
+func (h *HTTPTransport) MapUserRoutes() {
 	h.group.POST("/register", h.Register())
 	h.group.POST("/login", h.Login())
 	h.group.PUT("/:id/avatar", h.UpdateAvatar(), h.mw.SessionMiddleware)

@@ -5,6 +5,7 @@ import (
 
 	"github.com/opentracing/opentracing-go"
 	uuid "github.com/satori/go.uuid"
+	"github.com/streadway/amqp"
 	"google.golang.org/grpc/status"
 
 	"github.com/badu/microservices-demo/pkg/config"
@@ -12,14 +13,21 @@ import (
 	"github.com/badu/microservices-demo/pkg/logger"
 )
 
+type Service interface {
+	ResizeImage(ctx context.Context, delivery amqp.Delivery) error
+	ProcessHotelImage(ctx context.Context, delivery amqp.Delivery) error
+	Create(ctx context.Context, delivery amqp.Delivery) error
+	GetImageByID(ctx context.Context, imageID uuid.UUID) (*ImageDO, error)
+}
+
 type ImageServer struct {
 	cfg     *config.Config
 	logger  logger.Logger
 	service Service
 }
 
-func NewImageServer(cfg *config.Config, logger logger.Logger, service Service) *ImageServer {
-	return &ImageServer{cfg: cfg, logger: logger, service: service}
+func NewImageServer(cfg *config.Config, logger logger.Logger, service Service) ImageServer {
+	return ImageServer{cfg: cfg, logger: logger, service: service}
 }
 
 func (i *ImageServer) GetImageByID(ctx context.Context, req *GetByIDRequest) (*GetByIDResponse, error) {

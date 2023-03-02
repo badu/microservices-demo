@@ -3,45 +3,43 @@ package hotels
 import (
 	"context"
 
-	"github.com/badu/microservices-demo/app/gateway/users"
-	"github.com/badu/microservices-demo/pkg/config"
-	"github.com/badu/microservices-demo/pkg/grpc_client"
 	"github.com/go-redis/redis/v8"
 	"github.com/opentracing/opentracing-go"
 	"github.com/pkg/errors"
 	uuid "github.com/satori/go.uuid"
+	"google.golang.org/grpc"
 
-	"github.com/badu/microservices-demo/app/gateway/middlewares"
+	"github.com/badu/microservices-demo/app/gateway/users"
 	"github.com/badu/microservices-demo/app/hotels"
 	httpErrors "github.com/badu/microservices-demo/pkg/http_errors"
 	"github.com/badu/microservices-demo/pkg/logger"
 )
 
-type Service interface {
-	GetHotels(ctx context.Context, page, size int64) (*ListResult, error)
+type Repository interface {
 	GetHotelByID(ctx context.Context, hotelID uuid.UUID) (*Hotel, error)
-	UpdateHotel(ctx context.Context, hotel *Hotel) (*Hotel, error)
-	CreateHotel(ctx context.Context, hotel *Hotel) (*Hotel, error)
-	UploadImage(ctx context.Context, data []byte, contentType, hotelID string) error
+	SetHotel(ctx context.Context, hotel *Hotel) error
+	DeleteHotel(ctx context.Context, hotelID uuid.UUID) error
 }
 
-type serviceImpl struct {
-	logger                logger.Logger
-	grpcHotelsServicePort string
-	repository            Repository
-	mw                    *grpc_client.ClientMiddleware
+type ServiceImpl struct {
+	logger            logger.Logger
+	repository        Repository
+	grpcClientFactory func(ctx context.Context) (*grpc.ClientConn, hotels.HotelsServiceClient, error)
 }
 
-func NewHotelsService(logger logger.Logger, cfg *config.Config, repository Repository, tracer opentracing.Tracer) *serviceImpl {
-	logger.Debugf("grpcHotelsServicePort : %s", cfg.GRPC.HotelsServicePort)
-	return &serviceImpl{logger: logger, repository: repository, grpcHotelsServicePort: cfg.GRPC.HotelsServicePort, mw: grpc_client.NewClientMiddleware(logger, cfg, tracer)}
+func NewService(
+	logger logger.Logger,
+	repository Repository,
+	grpcClientFactory func(ctx context.Context) (*grpc.ClientConn, hotels.HotelsServiceClient, error),
+) ServiceImpl {
+	return ServiceImpl{logger: logger, repository: repository, grpcClientFactory: grpcClientFactory}
 }
 
-func (s *serviceImpl) GetHotelByID(ctx context.Context, hotelID uuid.UUID) (*Hotel, error) {
+func (s *ServiceImpl) GetHotelByID(ctx context.Context, hotelID uuid.UUID) (*Hotel, error) {
 	span, ctx := opentracing.StartSpanFromContext(ctx, "hotelsService.GetHotelByID")
 	defer span.Finish()
 
-	ctxUser, ok := ctx.Value(middlewares.RequestCtxUser{}).(*users.UserResponse)
+	ctxUser, ok := ctx.Value(users.RequestCtxUser{}).(*users.UserResponse)
 	if !ok || ctxUser == nil {
 		return nil, errors.Wrap(httpErrors.Unauthorized, "ctx.Value user")
 	}
@@ -56,13 +54,11 @@ func (s *serviceImpl) GetHotelByID(ctx context.Context, hotelID uuid.UUID) (*Hot
 		return cacheHotel, nil
 	}
 
-	conn, err := grpc_client.NewGRPCClientServiceConn(ctx, s.mw, s.grpcHotelsServicePort)
+	conn, client, err := s.grpcClientFactory(ctx)
 	if err != nil {
-		return nil, errors.Wrap(err, "hotelsService.GetHotelByID")
+		return nil, errors.Wrap(err, "ServiceImpl.GetHotelByID")
 	}
 	defer conn.Close()
-
-	client := hotels.NewHotelsServiceClient(conn)
 
 	hotelByID, err := client.GetHotelByID(ctx, &hotels.GetByIDReq{HotelID: hotelID.String()})
 	if err != nil {
@@ -81,17 +77,15 @@ func (s *serviceImpl) GetHotelByID(ctx context.Context, hotelID uuid.UUID) (*Hot
 	return fromProto, nil
 }
 
-func (s *serviceImpl) UpdateHotel(ctx context.Context, hotel *Hotel) (*Hotel, error) {
+func (s *ServiceImpl) UpdateHotel(ctx context.Context, hotel *Hotel) (*Hotel, error) {
 	span, ctx := opentracing.StartSpanFromContext(ctx, "hotelsService.UpdateHotel")
 	defer span.Finish()
 
-	conn, err := grpc_client.NewGRPCClientServiceConn(ctx, s.mw, s.grpcHotelsServicePort)
+	conn, client, err := s.grpcClientFactory(ctx)
 	if err != nil {
-		return nil, errors.Wrap(err, "hotelsService.UpdateHotel")
+		return nil, errors.Wrap(err, "ServiceImpl.UpdateHotel")
 	}
 	defer conn.Close()
-
-	client := hotels.NewHotelsServiceClient(conn)
 
 	hotelRes, err := client.UpdateHotel(ctx, &hotels.UpdateHotelReq{
 		HotelID:       hotel.HotelID.String(),
@@ -124,17 +118,15 @@ func (s *serviceImpl) UpdateHotel(ctx context.Context, hotel *Hotel) (*Hotel, er
 	return fromProto, nil
 }
 
-func (s *serviceImpl) CreateHotel(ctx context.Context, hotel *Hotel) (*Hotel, error) {
+func (s *ServiceImpl) CreateHotel(ctx context.Context, hotel *Hotel) (*Hotel, error) {
 	span, ctx := opentracing.StartSpanFromContext(ctx, "hotelsService.CreateHotel")
 	defer span.Finish()
 
-	conn, err := grpc_client.NewGRPCClientServiceConn(ctx, s.mw, s.grpcHotelsServicePort)
+	conn, client, err := s.grpcClientFactory(ctx)
 	if err != nil {
-		return nil, errors.Wrap(err, "hotelsService.CreateHotel")
+		return nil, errors.Wrap(err, "ServiceImpl.CreateHotel")
 	}
 	defer conn.Close()
-
-	client := hotels.NewHotelsServiceClient(conn)
 
 	hotelRes, err := client.CreateHotel(ctx, &hotels.CreateHotelReq{
 		Name:          hotel.Name,
@@ -162,17 +154,15 @@ func (s *serviceImpl) CreateHotel(ctx context.Context, hotel *Hotel) (*Hotel, er
 	return fromProto, nil
 }
 
-func (s *serviceImpl) UploadImage(ctx context.Context, data []byte, contentType, hotelID string) error {
+func (s *ServiceImpl) UploadImage(ctx context.Context, data []byte, contentType, hotelID string) error {
 	span, ctx := opentracing.StartSpanFromContext(ctx, "hotelsService.UploadImage")
 	defer span.Finish()
 
-	conn, err := grpc_client.NewGRPCClientServiceConn(ctx, s.mw, s.grpcHotelsServicePort)
+	conn, client, err := s.grpcClientFactory(ctx)
 	if err != nil {
-		return errors.Wrap(err, "hotelsService.UploadImage")
+		return errors.Wrap(err, "ServiceImpl.UploadImage")
 	}
 	defer conn.Close()
-
-	client := hotels.NewHotelsServiceClient(conn)
 
 	_, err = client.UploadImage(ctx, &hotels.UploadImageReq{
 		HotelID:     hotelID,
@@ -186,17 +176,15 @@ func (s *serviceImpl) UploadImage(ctx context.Context, data []byte, contentType,
 	return nil
 }
 
-func (s *serviceImpl) GetHotels(ctx context.Context, page, size int64) (*ListResult, error) {
+func (s *ServiceImpl) GetHotels(ctx context.Context, page, size int64) (*ListResult, error) {
 	span, ctx := opentracing.StartSpanFromContext(ctx, "hotelsService.GetHotels")
 	defer span.Finish()
 
-	conn, err := grpc_client.NewGRPCClientServiceConn(ctx, s.mw, s.grpcHotelsServicePort)
+	conn, client, err := s.grpcClientFactory(ctx)
 	if err != nil {
-		return nil, errors.Wrap(err, "hotelsService.GetHotels")
+		return nil, errors.Wrap(err, "ServiceImpl.GetHotels")
 	}
 	defer conn.Close()
-
-	client := hotels.NewHotelsServiceClient(conn)
 
 	hotelsRes, err := client.GetHotels(ctx, &hotels.GetHotelsReq{
 		Page: page,

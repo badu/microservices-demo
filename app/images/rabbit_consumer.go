@@ -16,21 +16,21 @@ import (
 
 type Consumer struct {
 	Worker    func(ctx context.Context, wg *sync.WaitGroup, messages <-chan amqp.Delivery)
-	PoolSize  int
 	QueueName string
 	Tag       string
+	PoolSize  int
 }
 
-type consumerImpl struct {
-	amqpConn         *amqp.Connection
+type ConsumerImpl struct {
 	logger           logger.Logger
-	cfg              *config.Config
 	service          Service
-	consumers        []*Consumer
-	channels         []*amqp.Channel
 	incomingMessages prometheus.Counter
 	successMessages  prometheus.Counter
 	errorMessages    prometheus.Counter
+	amqpConn         *amqp.Connection
+	cfg              *config.Config
+	consumers        []*Consumer
+	channels         []*amqp.Channel
 }
 
 func NewImageConsumer(
@@ -40,8 +40,8 @@ func NewImageConsumer(
 	incomingMessages prometheus.Counter,
 	successMessages prometheus.Counter,
 	errorMessages prometheus.Counter,
-) *consumerImpl {
-	return &consumerImpl{
+) ConsumerImpl {
+	return ConsumerImpl{
 		logger:           logger,
 		cfg:              cfg,
 		service:          service,
@@ -51,7 +51,7 @@ func NewImageConsumer(
 	}
 }
 
-func (c *consumerImpl) Dial() error {
+func (c *ConsumerImpl) Dial() error {
 	conn, err := rabbitmq.NewRabbitMQConn(c.cfg.RabbitMQ)
 	if err != nil {
 		return err
@@ -61,7 +61,7 @@ func (c *consumerImpl) Dial() error {
 }
 
 // Consume messages
-func (c *consumerImpl) CreateExchangeAndQueue(exchangeName, queueName, bindingKey string) (*amqp.Channel, error) {
+func (c *ConsumerImpl) CreateExchangeAndQueue(exchangeName, queueName, bindingKey string) (*amqp.Channel, error) {
 	ch, err := c.amqpConn.Channel()
 	if err != nil {
 		return nil, errors.Wrap(err, "Error amqpConn.Channel")
@@ -125,7 +125,7 @@ func (c *consumerImpl) CreateExchangeAndQueue(exchangeName, queueName, bindingKe
 	return ch, nil
 }
 
-func (c *consumerImpl) startConsume(
+func (c *ConsumerImpl) startConsume(
 	ctx context.Context,
 	worker func(ctx context.Context, wg *sync.WaitGroup, messages <-chan amqp.Delivery),
 	workerPoolSize int,
@@ -165,11 +165,11 @@ func (c *consumerImpl) startConsume(
 	return chanErr
 }
 
-func (c *consumerImpl) AddConsumer(consumer *Consumer) {
+func (c *ConsumerImpl) AddConsumer(consumer *Consumer) {
 	c.consumers = append(c.consumers, consumer)
 }
 
-func (c *consumerImpl) run(ctx context.Context, cancel context.CancelFunc) {
+func (c *ConsumerImpl) run(ctx context.Context, cancel context.CancelFunc) {
 	for _, cs := range c.consumers {
 		go func(consumer *Consumer) {
 			if err := c.startConsume(
@@ -186,7 +186,7 @@ func (c *consumerImpl) run(ctx context.Context, cancel context.CancelFunc) {
 	}
 }
 
-func (c *consumerImpl) RunConsumers(ctx context.Context, cancel context.CancelFunc) {
+func (c *ConsumerImpl) RunConsumers(ctx context.Context, cancel context.CancelFunc) {
 	c.AddConsumer(&Consumer{
 		Worker:    c.resizeWorker,
 		PoolSize:  ResizeWorkers,
@@ -208,10 +208,10 @@ func (c *consumerImpl) RunConsumers(ctx context.Context, cancel context.CancelFu
 	c.run(ctx, cancel)
 }
 
-func (c *consumerImpl) resizeWorker(ctx context.Context, wg *sync.WaitGroup, messages <-chan amqp.Delivery) {
+func (c *ConsumerImpl) resizeWorker(ctx context.Context, wg *sync.WaitGroup, messages <-chan amqp.Delivery) {
 	defer wg.Done()
 	for delivery := range messages {
-		span, ctx := opentracing.StartSpanFromContext(ctx, "consumerImpl.resizeWorker")
+		span, ctx := opentracing.StartSpanFromContext(ctx, "ConsumerImpl.resizeWorker")
 
 		c.logger.Infof("processDeliveries deliveryTag% v", delivery.DeliveryTag)
 
@@ -237,10 +237,10 @@ func (c *consumerImpl) resizeWorker(ctx context.Context, wg *sync.WaitGroup, mes
 	c.logger.Info("Deliveries channel closed")
 }
 
-func (c *consumerImpl) createImageWorker(ctx context.Context, wg *sync.WaitGroup, messages <-chan amqp.Delivery) {
+func (c *ConsumerImpl) createImageWorker(ctx context.Context, wg *sync.WaitGroup, messages <-chan amqp.Delivery) {
 	defer wg.Done()
 	for delivery := range messages {
-		span, ctx := opentracing.StartSpanFromContext(ctx, "consumerImpl.createImageWorker")
+		span, ctx := opentracing.StartSpanFromContext(ctx, "ConsumerImpl.createImageWorker")
 
 		c.logger.Infof("processDeliveries deliveryTag% v", delivery.DeliveryTag)
 
@@ -268,10 +268,10 @@ func (c *consumerImpl) createImageWorker(ctx context.Context, wg *sync.WaitGroup
 	c.logger.Info("Deliveries channel closed")
 }
 
-func (c *consumerImpl) processHotelImageWorker(ctx context.Context, wg *sync.WaitGroup, messages <-chan amqp.Delivery) {
+func (c *ConsumerImpl) processHotelImageWorker(ctx context.Context, wg *sync.WaitGroup, messages <-chan amqp.Delivery) {
 	defer wg.Done()
 	for delivery := range messages {
-		span, ctx := opentracing.StartSpanFromContext(ctx, "consumerImpl.createImageWorker")
+		span, ctx := opentracing.StartSpanFromContext(ctx, "ConsumerImpl.createImageWorker")
 
 		c.logger.Infof("processDeliveries deliveryTag% v", delivery.DeliveryTag)
 

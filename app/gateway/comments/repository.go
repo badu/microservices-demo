@@ -12,32 +12,26 @@ import (
 	uuid "github.com/satori/go.uuid"
 )
 
-type Repository interface {
-	CommentByID(ctx context.Context, commentID uuid.UUID) (*Comment, error)
-	SetComment(ctx context.Context, comment *Comment) error
-	DeleteComment(ctx context.Context, commentID uuid.UUID) error
-}
-
 const (
 	prefix     = "comments:"
 	expiration = time.Second * 3600
 )
 
-type repositoryImpl struct {
+type RepositoryImpl struct {
 	client *redis.Client
 }
 
-func NewRepository(redisConn *redis.Client) *repositoryImpl {
-	return &repositoryImpl{client: redisConn}
+func NewRepository(redisConn *redis.Client) RepositoryImpl {
+	return RepositoryImpl{client: redisConn}
 }
 
-func (c *repositoryImpl) CommentByID(ctx context.Context, commentID uuid.UUID) (*Comment, error) {
-	span, ctx := opentracing.StartSpanFromContext(ctx, "repositoryImpl.CommentByID")
+func (c *RepositoryImpl) CommentByID(ctx context.Context, commentID uuid.UUID) (*Comment, error) {
+	span, ctx := opentracing.StartSpanFromContext(ctx, "RepositoryImpl.CommentByID")
 	defer span.Finish()
 
 	result, err := c.client.Get(ctx, c.createKey(commentID)).Bytes()
 	if err != nil {
-		return nil, errors.Wrap(err, "repositoryImpl.CommentByID.Get")
+		return nil, errors.Wrap(err, "RepositoryImpl.CommentByID.Get")
 	}
 
 	var res Comment
@@ -47,33 +41,33 @@ func (c *repositoryImpl) CommentByID(ctx context.Context, commentID uuid.UUID) (
 	return &res, nil
 }
 
-func (c *repositoryImpl) SetComment(ctx context.Context, comment *Comment) error {
-	span, ctx := opentracing.StartSpanFromContext(ctx, "repositoryImpl.SetComment")
+func (c *RepositoryImpl) SetComment(ctx context.Context, comment *Comment) error {
+	span, ctx := opentracing.StartSpanFromContext(ctx, "RepositoryImpl.SetComment")
 	defer span.Finish()
 
 	commBytes, err := json.Marshal(comment)
 	if err != nil {
-		return errors.Wrap(err, "repositoryImpl.Marshal")
+		return errors.Wrap(err, "RepositoryImpl.Marshal")
 	}
 
 	if err := c.client.SetEX(ctx, c.createKey(comment.CommentID), string(commBytes), expiration).Err(); err != nil {
-		return errors.Wrap(err, "repositoryImpl.SetComment.SetEX")
+		return errors.Wrap(err, "RepositoryImpl.SetComment.SetEX")
 	}
 
 	return nil
 }
 
-func (c *repositoryImpl) DeleteComment(ctx context.Context, commentID uuid.UUID) error {
-	span, ctx := opentracing.StartSpanFromContext(ctx, "repositoryImpl.DeleteComment")
+func (c *RepositoryImpl) DeleteComment(ctx context.Context, commentID uuid.UUID) error {
+	span, ctx := opentracing.StartSpanFromContext(ctx, "RepositoryImpl.DeleteComment")
 	defer span.Finish()
 
 	if err := c.client.Del(ctx, c.createKey(commentID)).Err(); err != nil {
-		return errors.Wrap(err, "repositoryImpl.DeleteComment.Del")
+		return errors.Wrap(err, "RepositoryImpl.DeleteComment.Del")
 	}
 
 	return nil
 }
 
-func (c *repositoryImpl) createKey(commID uuid.UUID) string {
+func (c *RepositoryImpl) createKey(commID uuid.UUID) string {
 	return fmt.Sprintf("%s: %s", prefix, commID.String())
 }

@@ -7,51 +7,51 @@ package sessions;
 option go_package = "github.com/badu/microservices-demo/app/sessions;sessions";
 
 message Session {
-  string UserID = 1;
-  string SessionID = 2;
+  string        UserID          = 1;
+  string        SessionID       = 2;
 }
 
 message CsrfTokenInput {
-  string SessionID = 1;
+  string        SessionID       = 1;
 }
 
 message CsrfToken {
-  string Token = 1;
+  string        Token           = 1;
 }
 
 message CsrfTokenCheck {
-  string SessionID = 1;
-  string Token = 2;
+  string        SessionID       = 1;
+  string        Token           = 2;
 }
 
 message CheckResult {
-  bool Result = 1;
+  bool          Result          = 1;
 }
 
 message Empty {}
 
 message CreateSessionRequest {
-  string UserID = 1;
+  string        UserID          = 1;
 }
 
 message CreateSessionResponse {
-  Session Session = 1;
+  Session       Session         = 1;
 }
 
 message GetSessionByIDRequest {
-  string SessionID = 1;
+  string        SessionID       = 1;
 }
 
 message GetSessionByIDResponse {
-  Session Session = 1;
+  Session       Session         = 1;
 }
 
 message DeleteSessionRequest {
-  string SessionID = 1;
+  string        SessionID       = 1;
 }
 
 message DeleteSessionResponse {
-  string SessionID = 1;
+  string        SessionID       = 1;
 }
 
 message CreateCsrfTokenRequest {
@@ -59,7 +59,7 @@ message CreateCsrfTokenRequest {
 }
 
 message CreateCsrfTokenResponse {
-  CsrfToken CsrfToken = 1;
+  CsrfToken      CsrfToken      = 1;
 }
 
 message CheckCsrfTokenRequest {
@@ -67,14 +67,14 @@ message CheckCsrfTokenRequest {
 }
 
 message CheckCsrfTokenResponse {
-  CheckResult CheckResult = 1;
+  CheckResult    CheckResult    = 1;
 }
 
 service AuthorizationService {
-  rpc CreateSession(CreateSessionRequest) returns (CreateSessionResponse) {}
+  rpc CreateSession(CreateSessionRequest)   returns (CreateSessionResponse) {}
   rpc GetSessionByID(GetSessionByIDRequest) returns (GetSessionByIDResponse) {}
-  rpc DeleteSession(DeleteSessionRequest) returns (DeleteSessionResponse) {}
+  rpc DeleteSession(DeleteSessionRequest)   returns (DeleteSessionResponse) {}
 
   rpc CreateCsrfToken(CreateCsrfTokenRequest) returns (CreateCsrfTokenResponse) {}
-  rpc CheckCsrfToken(CheckCsrfTokenRequest) returns (CheckCsrfTokenResponse) {}
+  rpc CheckCsrfToken(CheckCsrfTokenRequest)   returns (CheckCsrfTokenResponse) {}
 }

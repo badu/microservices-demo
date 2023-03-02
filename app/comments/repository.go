@@ -3,19 +3,13 @@ package comments
 import (
 	"context"
 
-	"github.com/badu/microservices-demo/pkg/pagination"
 	"github.com/jackc/pgx/v4/pgxpool"
 	"github.com/opentracing/opentracing-go"
 	"github.com/pkg/errors"
 	uuid "github.com/satori/go.uuid"
-)
 
-type Repository interface {
-	Create(ctx context.Context, comment *CommentDO) (*CommentDO, error)
-	GetByID(ctx context.Context, commentID uuid.UUID) (*CommentDO, error)
-	Update(ctx context.Context, comment *CommentDO) (*CommentDO, error)
-	GetByHotelID(ctx context.Context, hotelID uuid.UUID, query *pagination.Pagination) (*List, error)
-}
+	"github.com/badu/microservices-demo/pkg/pagination"
+)
 
 const (
 	createCommentQuery = `INSERT INTO comments (hotel_id, user_id, message, photos, rating) VALUES ($1, $2, $3, $4, $5) RETURNING comment_id, hotel_id, user_id, message, photos, rating, created_at, updated_at`
@@ -30,16 +24,16 @@ const (
 	getCommentByHotelIDQuery = `SELECT comment_id, hotel_id, user_id, message, photos, rating, created_at, updated_at FROM comments WHERE hotel_id = $1 OFFSET $2 LIMIT $3`
 )
 
-type repositoryImpl struct {
+type RepositoryImpl struct {
 	db *pgxpool.Pool
 }
 
-func NewCommPGRepo(db *pgxpool.Pool) *repositoryImpl {
-	return &repositoryImpl{db: db}
+func NewRepository(db *pgxpool.Pool) RepositoryImpl {
+	return RepositoryImpl{db: db}
 }
 
-func (c *repositoryImpl) Create(ctx context.Context, comment *CommentDO) (*CommentDO, error) {
-	span, ctx := opentracing.StartSpanFromContext(ctx, "repositoryImpl.Create")
+func (c *RepositoryImpl) Create(ctx context.Context, comment *CommentDO) (*CommentDO, error) {
+	span, ctx := opentracing.StartSpanFromContext(ctx, "RepositoryImpl.Create")
 	defer span.Finish()
 
 	var comm CommentDO
@@ -67,8 +61,8 @@ func (c *repositoryImpl) Create(ctx context.Context, comment *CommentDO) (*Comme
 	return &comm, nil
 }
 
-func (c *repositoryImpl) GetByID(ctx context.Context, commentID uuid.UUID) (*CommentDO, error) {
-	span, ctx := opentracing.StartSpanFromContext(ctx, "repositoryImpl.GetByID")
+func (c *RepositoryImpl) GetByID(ctx context.Context, commentID uuid.UUID) (*CommentDO, error) {
+	span, ctx := opentracing.StartSpanFromContext(ctx, "RepositoryImpl.GetByID")
 	defer span.Finish()
 
 	var comm CommentDO
@@ -88,8 +82,8 @@ func (c *repositoryImpl) GetByID(ctx context.Context, commentID uuid.UUID) (*Com
 	return &comm, nil
 }
 
-func (c *repositoryImpl) Update(ctx context.Context, comment *CommentDO) (*CommentDO, error) {
-	span, ctx := opentracing.StartSpanFromContext(ctx, "repositoryImpl.Update")
+func (c *RepositoryImpl) Update(ctx context.Context, comment *CommentDO) (*CommentDO, error) {
+	span, ctx := opentracing.StartSpanFromContext(ctx, "RepositoryImpl.Update")
 	defer span.Finish()
 
 	var comm CommentDO
@@ -109,8 +103,8 @@ func (c *repositoryImpl) Update(ctx context.Context, comment *CommentDO) (*Comme
 	return &comm, nil
 }
 
-func (c *repositoryImpl) GetByHotelID(ctx context.Context, hotelID uuid.UUID, query *pagination.Pagination) (*List, error) {
-	span, ctx := opentracing.StartSpanFromContext(ctx, "repositoryImpl.GetByHotelID")
+func (c *RepositoryImpl) GetByHotelID(ctx context.Context, hotelID uuid.UUID, query *pagination.Pagination) (*List, error) {
+	span, ctx := opentracing.StartSpanFromContext(ctx, "RepositoryImpl.GetByHotelID")
 	defer span.Finish()
 
 	var totalCount int

@@ -48,7 +48,7 @@ const (
 )
 
 // Initialize consumers
-func (c *consumerImpl) Initialize() error {
+func (c *ConsumerImpl) Initialize() error {
 	if err := c.Dial(); err != nil {
 		return errors.Wrap(err, "Consumer Dial")
 	}
@@ -75,7 +75,7 @@ func (c *consumerImpl) Initialize() error {
 }
 
 // CloseChannels close active channels
-func (c *consumerImpl) CloseChannels() {
+func (c *ConsumerImpl) CloseChannels() {
 	for _, channel := range c.channels {
 		go func(ch *amqp.Channel) {
 			if err := ch.Close(); err != nil {

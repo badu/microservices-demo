@@ -1,6 +1,7 @@
 package comments
 
 import (
+	"context"
 	"net/http"
 	"strconv"
 
@@ -9,26 +10,25 @@ import (
 	"github.com/opentracing/opentracing-go"
 	uuid "github.com/satori/go.uuid"
 
-	"github.com/badu/microservices-demo/app/gateway/middlewares"
+	"github.com/badu/microservices-demo/app/gateway/users"
 	"github.com/badu/microservices-demo/pkg/config"
 	httpErrors "github.com/badu/microservices-demo/pkg/http_errors"
 	"github.com/badu/microservices-demo/pkg/logger"
 )
 
-type Server interface {
-	CreateComment() echo.HandlerFunc
-	GetCommByID() echo.HandlerFunc
-	UpdateComment() echo.HandlerFunc
-	GetByHotelID() echo.HandlerFunc
+type Service interface {
+	CreateComment(ctx context.Context, comment *Comment) (*Comment, error)
+	GetCommByID(ctx context.Context, commentID uuid.UUID) (*Comment, error)
+	UpdateComment(ctx context.Context, comment *Comment) (*Comment, error)
+	GetByHotelID(ctx context.Context, hotelID uuid.UUID, page, size int64) (*List, error)
 }
 
-type serverImpl struct {
+type ServerImpl struct {
 	cfg      *config.Config
 	group    *echo.Group
 	logger   logger.Logger
 	validate *validator.Validate
 	service  Service
-	mw       *middlewares.MiddlewareManager
 }
 
 func NewServer(
@@ -37,9 +37,8 @@ func NewServer(
 	logger logger.Logger,
 	validate *validator.Validate,
 	service Service,
-	mw *middlewares.MiddlewareManager,
-) *serverImpl {
-	return &serverImpl{cfg: cfg, group: group, logger: logger, validate: validate, service: service, mw: mw}
+) ServerImpl {
+	return ServerImpl{cfg: cfg, group: group, logger: logger, validate: validate, service: service}
 }
 
 // Register CreateComment
@@ -51,9 +50,9 @@ func NewServer(
 // @Success 201 {object} Comment
 // @Router /comments [post]
 // @BasePath /api/v1
-func (s *serverImpl) CreateComment() echo.HandlerFunc {
+func (s *ServerImpl) CreateComment() echo.HandlerFunc {
 	return func(c echo.Context) error {
-		span, ctx := opentracing.StartSpanFromContext(c.Request().Context(), "serverImpl.CreateComment")
+		span, ctx := opentracing.StartSpanFromContext(c.Request().Context(), "ServerImpl.CreateComment")
 		defer span.Finish()
 
 		var comm Comment
@@ -87,9 +86,9 @@ func (s *serverImpl) CreateComment() echo.HandlerFunc {
 // @Success 200 {object} Comment
 // @Router /comments/{comment_id} [get]
 // @BasePath /api/v1
-func (s *serverImpl) GetCommByID() echo.HandlerFunc {
+func (s *ServerImpl) GetCommByID() echo.HandlerFunc {
 	return func(c echo.Context) error {
-		span, ctx := opentracing.StartSpanFromContext(c.Request().Context(), "serverImpl.GetCommByID")
+		span, ctx := opentracing.StartSpanFromContext(c.Request().Context(), "ServerImpl.GetCommByID")
 		defer span.Finish()
 
 		commUUID, err := uuid.FromString(c.QueryParam("comment_id"))
@@ -118,9 +117,9 @@ func (s *serverImpl) GetCommByID() echo.HandlerFunc {
 // @Success 200 {object} Comment
 // @Router /comments/{comment_id} [put]
 // @BasePath /api/v1
-func (s *serverImpl) UpdateComment() echo.HandlerFunc {
+func (s *ServerImpl) UpdateComment() echo.HandlerFunc {
 	return func(c echo.Context) error {
-		span, ctx := opentracing.StartSpanFromContext(c.Request().Context(), "serverImpl.UpdateComment")
+		span, ctx := opentracing.StartSpanFromContext(c.Request().Context(), "ServerImpl.UpdateComment")
 		defer span.Finish()
 
 		commUUID, err := uuid.FromString(c.QueryParam("comment_id"))
@@ -161,9 +160,9 @@ func (s *serverImpl) UpdateComment() echo.HandlerFunc {
 // @Success 200 {object} List
 // @Router /comments/hotel/{hotel_id} [get]
 // @BasePath /api/v1
-func (s *serverImpl) GetByHotelID() echo.HandlerFunc {
+func (s *ServerImpl) GetByHotelID() echo.HandlerFunc {
 	return func(c echo.Context) error {
-		span, ctx := opentracing.StartSpanFromContext(c.Request().Context(), "serverImpl.GetByHotelID")
+		span, ctx := opentracing.StartSpanFromContext(c.Request().Context(), "ServerImpl.GetByHotelID")
 		defer span.Finish()
 
 		hotelUUID, err := uuid.FromString(c.QueryParam("hotel_id"))
@@ -193,9 +192,9 @@ func (s *serverImpl) GetByHotelID() echo.HandlerFunc {
 	}
 }
 
-func (s *serverImpl) MapRoutes() {
+func (s *ServerImpl) MapRoutes(mw *users.SessionMiddleware) {
 	s.group.GET("/:comment_id", s.GetCommByID())
-	s.group.POST("", s.CreateComment(), s.mw.SessionMiddleware)
-	s.group.PUT("/:comment_id", s.UpdateComment(), s.mw.SessionMiddleware)
+	s.group.POST("", s.CreateComment(), mw.SessionMiddleware)
+	s.group.PUT("/:comment_id", s.UpdateComment(), mw.SessionMiddleware)
 	s.group.PUT("/comments/hotel/:hotel_id", s.GetByHotelID())
 }

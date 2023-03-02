@@ -1,33 +1,39 @@
-package middlewares
+package users
 
 import (
 	"context"
 	"errors"
 	"net/http"
 
-	"github.com/badu/microservices-demo/app/gateway/users"
+	"github.com/labstack/echo/v4"
+	"github.com/opentracing/opentracing-go"
+	uuid "github.com/satori/go.uuid"
+
 	"github.com/badu/microservices-demo/pkg/config"
 	httpErrors "github.com/badu/microservices-demo/pkg/http_errors"
 	"github.com/badu/microservices-demo/pkg/logger"
-	"github.com/labstack/echo/v4"
-	"github.com/opentracing/opentracing-go"
 )
 
-type MiddlewareManager struct {
-	logger  logger.Logger
-	cfg     *config.Config
-	service users.Service
+type Service interface {
+	GetByID(ctx context.Context, userUUID uuid.UUID) (*UserResponse, error)
+	GetSessionByID(ctx context.Context, sessionID string) (*Session, error)
 }
 
-func NewMiddlewareManager(logger logger.Logger, cfg *config.Config, service users.Service) *MiddlewareManager {
-	return &MiddlewareManager{logger: logger, cfg: cfg, service: service}
+type SessionMiddleware struct {
+	logger  logger.Logger
+	cfg     *config.Config
+	service Service
+}
+
+func NewSessionMiddleware(logger logger.Logger, cfg *config.Config, service Service) SessionMiddleware {
+	return SessionMiddleware{logger: logger, cfg: cfg, service: service}
 }
 
 type RequestCtxUser struct{}
 
 type RequestCtxSession struct{}
 
-func (m *MiddlewareManager) SessionMiddleware(next echo.HandlerFunc) echo.HandlerFunc {
+func (m *SessionMiddleware) SessionMiddleware(next echo.HandlerFunc) echo.HandlerFunc {
 	return func(c echo.Context) error {
 		span, ctx := opentracing.StartSpanFromContext(c.Request().Context(), "user.SessionMiddleware")
 		defer span.Finish()

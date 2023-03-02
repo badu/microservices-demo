@@ -12,24 +12,18 @@ import (
 	uuid "github.com/satori/go.uuid"
 )
 
-type Repository interface {
-	CreateSession(ctx context.Context, userID uuid.UUID) (*SessionDO, error)
-	GetSessionByID(ctx context.Context, sessID string) (*SessionDO, error)
-	DeleteSession(ctx context.Context, sessID string) error
-}
-
-type repositoryImpl struct {
+type RepositoryImpl struct {
 	redis      *redis.Client
 	prefix     string
 	expiration time.Duration
 }
 
-func NewSessionRedisRepo(redis *redis.Client, prefix string, expiration time.Duration) *repositoryImpl {
-	return &repositoryImpl{redis: redis, prefix: prefix, expiration: expiration}
+func NewRepository(redis *redis.Client, prefix string, expiration time.Duration) RepositoryImpl {
+	return RepositoryImpl{redis: redis, prefix: prefix, expiration: expiration}
 }
 
-func (s *repositoryImpl) CreateSession(ctx context.Context, userID uuid.UUID) (*SessionDO, error) {
-	span, ctx := opentracing.StartSpanFromContext(ctx, "repositoryImpl.CreateSession")
+func (s *RepositoryImpl) CreateSession(ctx context.Context, userID uuid.UUID) (*SessionDO, error) {
+	span, ctx := opentracing.StartSpanFromContext(ctx, "RepositoryImpl.CreateSession")
 	defer span.Finish()
 
 	sess := &SessionDO{
@@ -49,8 +43,8 @@ func (s *repositoryImpl) CreateSession(ctx context.Context, userID uuid.UUID) (*
 	return sess, nil
 }
 
-func (s *repositoryImpl) GetSessionByID(ctx context.Context, sessID string) (*SessionDO, error) {
-	span, ctx := opentracing.StartSpanFromContext(ctx, "repositoryImpl.GetSessionByID")
+func (s *RepositoryImpl) GetSessionByID(ctx context.Context, sessID string) (*SessionDO, error) {
+	span, ctx := opentracing.StartSpanFromContext(ctx, "RepositoryImpl.GetSessionByID")
 	defer span.Finish()
 
 	result, err := s.redis.Get(ctx, s.createKey(sessID)).Result()
@@ -65,8 +59,8 @@ func (s *repositoryImpl) GetSessionByID(ctx context.Context, sessID string) (*Se
 	return &sess, nil
 }
 
-func (s *repositoryImpl) DeleteSession(ctx context.Context, sessID string) error {
-	span, ctx := opentracing.StartSpanFromContext(ctx, "repositoryImpl.DeleteSession")
+func (s *RepositoryImpl) DeleteSession(ctx context.Context, sessID string) error {
+	span, ctx := opentracing.StartSpanFromContext(ctx, "RepositoryImpl.DeleteSession")
 	defer span.Finish()
 
 	if err := s.redis.Del(ctx, s.createKey(sessID)).Err(); err != nil {
@@ -75,6 +69,6 @@ func (s *repositoryImpl) DeleteSession(ctx context.Context, sessID string) error
 	return nil
 }
 
-func (s *repositoryImpl) createKey(sessionID string) string {
+func (s *RepositoryImpl) createKey(sessionID string) string {
 	return fmt.Sprintf("%s: %s", s.prefix, sessionID)
 }

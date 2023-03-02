@@ -3,24 +3,25 @@ package users
 import (
 	"time"
 
-	"github.com/badu/microservices-demo/app/sessions"
 	uuid "github.com/satori/go.uuid"
+
+	"github.com/badu/microservices-demo/app/sessions"
 
 	"github.com/badu/microservices-demo/app/users"
 )
 
 type UserResponse struct {
-	UserID    uuid.UUID  `json:"user_id"`
-	FirstName string     `json:"first_name" validate:"required,min=3,max=25"`
-	LastName  string     `json:"last_name" validate:"required,min=3,max=25"`
-	Email     string     `json:"email" validate:"required,email"`
 	Role      *string    `json:"role"`
 	Avatar    *string    `json:"avatar" validate:"max=250" swaggertype:"string"`
 	CreatedAt *time.Time `json:"created_at"`
 	UpdatedAt *time.Time `json:"updated_at"`
+	FirstName string     `json:"first_name" validate:"required,min=3,max=25"`
+	LastName  string     `json:"last_name" validate:"required,min=3,max=25"`
+	Email     string     `json:"email" validate:"required,email"`
+	UserID    uuid.UUID  `json:"user_id"`
 }
 
-func UserFromProtoRes(user *users.User) (*UserResponse, error) {
+func UserFromProto(user *users.User) (*UserResponse, error) {
 	userUUID, err := uuid.FromString(user.GetUserID())
 	if err != nil {
 		return nil, err
@@ -66,8 +67,8 @@ func (u *CommentUser) FromProto(user *users.User) {
 }
 
 type Session struct {
-	UserID    uuid.UUID `json:"user_id"`
 	SessionID string    `json:"session_id"`
+	UserID    uuid.UUID `json:"user_id"`
 }
 
 func (s *Session) FromProto(session *sessions.Session) (*Session, error) {

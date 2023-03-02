@@ -14,12 +14,11 @@ const (
 
 // Pagination query params
 type Pagination struct {
+	OrderBy string `json:"orderBy,omitempty"`
 	Size    int    `json:"size,omitempty"`
 	Page    int    `json:"page,omitempty"`
-	OrderBy string `json:"orderBy,omitempty"`
 }
 
-// NewPaginationQuery
 func NewPaginationQuery(size int, page int) *Pagination {
 	return &Pagination{Size: size, Page: page}
 }

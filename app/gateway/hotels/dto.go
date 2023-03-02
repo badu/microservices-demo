@@ -9,30 +9,30 @@ import (
 )
 
 type Hotel struct {
-	HotelID       uuid.UUID  `json:"hotel_id"`
-	Name          string     `json:"name" validate:"required,min=3,max=25"`
-	Email         string     `json:"email,omitempty" validate:"required,email"`
-	Country       string     `json:"country,omitempty" validate:"required,min=3,max=25"`
-	City          string     `json:"city,omitempty" validate:"required,min=3,max=25"`
-	Description   string     `json:"description,omitempty" validate:"required,min=10,max=250"`
-	Location      string     `json:"location" validate:"required,min=10,max=250"`
-	Rating        float64    `json:"rating" validate:"required,min=0,max=10"`
 	Image         *string    `json:"image,omitempty"`
-	Photos        []string   `json:"photos,omitempty"`
-	CommentsCount int        `json:"comments_count,omitempty"`
-	Latitude      *float64   `json:"latitude,omitempty"`
-	Longitude     *float64   `json:"longitude,omitempty"`
-	CreatedAt     *time.Time `json:"created_at"`
 	UpdatedAt     *time.Time `json:"updated_at"`
+	CreatedAt     *time.Time `json:"created_at"`
+	Longitude     *float64   `json:"longitude,omitempty"`
+	Latitude      *float64   `json:"latitude,omitempty"`
+	Location      string     `json:"location" validate:"required,min=10,max=250"`
+	Description   string     `json:"description,omitempty" validate:"required,min=10,max=250"`
+	City          string     `json:"city,omitempty" validate:"required,min=3,max=25"`
+	Country       string     `json:"country,omitempty" validate:"required,min=3,max=25"`
+	Email         string     `json:"email,omitempty" validate:"required,email"`
+	Name          string     `json:"name" validate:"required,min=3,max=25"`
+	Photos        []string   `json:"photos,omitempty"`
+	Rating        float64    `json:"rating" validate:"required,min=0,max=10"`
+	CommentsCount int        `json:"comments_count,omitempty"`
+	HotelID       uuid.UUID  `json:"hotel_id"`
 }
 
 type ListResult struct {
+	Hotels     []*Hotel `json:"hotels"`
 	TotalCount int64    `json:"totalCount"`
 	TotalPages int64    `json:"totalPages"`
 	Page       int64    `json:"page"`
 	Size       int64    `json:"size"`
 	HasMore    bool     `json:"hasMore"`
-	Hotels     []*Hotel `json:"hotels"`
 }
 
 func HotelFromProto(v *hotelsService.Hotel) (*Hotel, error) {

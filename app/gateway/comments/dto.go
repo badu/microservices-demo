@@ -3,30 +3,31 @@ package comments
 import (
 	"time"
 
-	"github.com/badu/microservices-demo/app/gateway/users"
 	uuid "github.com/satori/go.uuid"
+
+	"github.com/badu/microservices-demo/app/gateway/users"
 
 	"github.com/badu/microservices-demo/app/comments"
 )
 
 type Comment struct {
-	CommentID uuid.UUID  `json:"comment_id"`
-	HotelID   uuid.UUID  `json:"hotel_id"`
-	UserID    uuid.UUID  `json:"user_id"`
+	CreatedAt *time.Time `json:"created_at"`
+	UpdatedAt *time.Time `json:"updated_at"`
 	Message   string     `json:"message" validate:"required,min=5,max=500"`
 	Photos    []string   `json:"photos,omitempty"`
 	Rating    float64    `json:"rating" validate:"required,min=0,max=10"`
-	CreatedAt *time.Time `json:"created_at"`
-	UpdatedAt *time.Time `json:"updated_at"`
+	CommentID uuid.UUID  `json:"comment_id"`
+	HotelID   uuid.UUID  `json:"hotel_id"`
+	UserID    uuid.UUID  `json:"user_id"`
 }
 
 type List struct {
+	Comments   []*CommentFull `json:"comments"`
 	TotalCount int64          `json:"totalCount"`
 	TotalPages int64          `json:"totalPages"`
 	Page       int64          `json:"page"`
 	Size       int64          `json:"size"`
 	HasMore    bool           `json:"hasMore"`
-	Comments   []*CommentFull `json:"comments"`
 }
 
 func FromProto(comment *comments.Comment) (*Comment, error) {
@@ -64,14 +65,14 @@ func FromProto(comment *comments.Comment) (*Comment, error) {
 }
 
 type CommentFull struct {
-	CommentID uuid.UUID          `json:"comment_id"`
-	HotelID   uuid.UUID          `json:"hotel_id"`
 	User      *users.CommentUser `json:"user"`
+	CreatedAt *time.Time         `json:"createdAt"`
+	UpdatedAt *time.Time         `json:"updatedAt"`
 	Message   string             `json:"message"`
 	Photos    []string           `json:"photos"`
 	Rating    float64            `json:"rating"`
-	CreatedAt *time.Time         `json:"createdAt"`
-	UpdatedAt *time.Time         `json:"updatedAt"`
+	CommentID uuid.UUID          `json:"comment_id"`
+	HotelID   uuid.UUID          `json:"hotel_id"`
 }
 
 func FullFromProto(comm *comments.CommentFull) (*CommentFull, error) {

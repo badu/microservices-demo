@@ -9,18 +9,18 @@ import (
 
 // ImageDO model
 type ImageDO struct {
-	ImageID    uuid.UUID `json:"image_id"`
-	ImageURL   string    `json:"image_url"`
-	IsUploaded bool      `json:"is_uploaded"`
 	CreatedAt  time.Time `json:"created_at"`
 	UpdatedAt  time.Time `json:"updated_at"`
+	ImageURL   string    `json:"image_url"`
+	ImageID    uuid.UUID `json:"image_id"`
+	IsUploaded bool      `json:"is_uploaded"`
 }
 
 // Event message for upload image
 type UploadImageMsg struct {
+	ImageURL   string    `json:"image_url"`
 	ImageID    uuid.UUID `json:"image_id"`
 	UserID     uuid.UUID `json:"user_id"`
-	ImageURL   string    `json:"image_url"`
 	IsUploaded bool      `json:"is_uploaded"`
 }
 
@@ -39,24 +39,23 @@ func (i *ImageDO) ToProto() *Image {
 	}
 }
 
-// UpdateHotelImageMsg
 type UpdateHotelImageMsg struct {
-	HotelID uuid.UUID `json:"hotel_id"`
 	Image   string    `json:"image,omitempty"`
+	HotelID uuid.UUID `json:"hotel_id"`
 }
 
 // Event message for uploaded images
 type UploadedImageMsg struct {
+	CreatedAt  time.Time `json:"created_at"`
+	ImageURL   string    `json:"image_url"`
 	ImageID    uuid.UUID `json:"image_id"`
 	UserID     uuid.UUID `json:"user_id"`
-	ImageURL   string    `json:"image_url"`
 	IsUploaded bool      `json:"is_uploaded"`
-	CreatedAt  time.Time `json:"created_at"`
 }
 
 // Event message for upload user avatar
 type UpdateAvatarMsg struct {
-	UserID      uuid.UUID `json:"user_id"`
-	ContentType string    `json:"content_type"`
+	ContentType string `json:"content_type"`
 	Body        []byte
+	UserID      uuid.UUID `json:"user_id"`
 }

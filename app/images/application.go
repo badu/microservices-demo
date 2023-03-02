@@ -29,7 +29,7 @@ import (
 	"github.com/badu/microservices-demo/pkg/logger"
 )
 
-type Server struct {
+type Application struct {
 	logger  logger.Logger
 	cfg     *config.Config
 	tracer  opentracing.Tracer
@@ -37,11 +37,11 @@ type Server struct {
 	s3      *s3.S3
 }
 
-func NewServer(logger logger.Logger, cfg *config.Config, tracer opentracing.Tracer, pgxPool *pgxpool.Pool, s3 *s3.S3) *Server {
-	return &Server{logger: logger, cfg: cfg, tracer: tracer, pgxPool: pgxPool, s3: s3}
+func NewApplication(logger logger.Logger, cfg *config.Config, tracer opentracing.Tracer, pgxPool *pgxpool.Pool, s3 *s3.S3) Application {
+	return Application{logger: logger, cfg: cfg, tracer: tracer, pgxPool: pgxPool, s3: s3}
 }
 
-func (s *Server) Run() error {
+func (s *Application) Run() error {
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
@@ -71,9 +71,9 @@ func (s *Server) Run() error {
 
 	repository := NewRepository(s.pgxPool)
 	storage := NewAWSStorage(s.cfg, s.s3)
-	service := NewService(repository, storage, s.logger, publisher)
+	service := NewService(&repository, &storage, s.logger, &publisher)
 
-	consumer := NewImageConsumer(s.logger, s.cfg, service, incomingMessages, successMessages, errorMessages)
+	consumer := NewImageConsumer(s.logger, s.cfg, &service, incomingMessages, successMessages, errorMessages)
 	if err := consumer.Initialize(); err != nil {
 		return errors.Wrap(err, "consumer.Initialize")
 	}
@@ -114,8 +114,8 @@ func (s *Server) Run() error {
 		),
 	)
 
-	server := NewImageServer(s.cfg, s.logger, service)
-	RegisterImageServiceServer(grpcServer, server)
+	server := NewImageServer(s.cfg, s.logger, &service)
+	RegisterImageServiceServer(grpcServer, &server)
 	grpcPrometheus.Register(grpcServer)
 
 	go func() {

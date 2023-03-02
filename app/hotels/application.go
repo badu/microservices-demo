@@ -28,8 +28,7 @@ import (
 	"github.com/badu/microservices-demo/pkg/logger"
 )
 
-// Server
-type Server struct {
+type Application struct {
 	echo      *echo.Echo
 	logger    logger.Logger
 	cfg       *config.Config
@@ -38,23 +37,22 @@ type Server struct {
 	tracer    opentracing.Tracer
 }
 
-// NewServer
-func NewServer(logger logger.Logger, cfg *config.Config, redisConn *redis.Client, pgxPool *pgxpool.Pool, tracer opentracing.Tracer) *Server {
-	return &Server{logger: logger, cfg: cfg, redisConn: redisConn, pgxPool: pgxPool, echo: echo.New(), tracer: tracer}
+func NewApplication(logger logger.Logger, cfg *config.Config, redisConn *redis.Client, pgxPool *pgxpool.Pool, tracer opentracing.Tracer) Application {
+	return Application{logger: logger, cfg: cfg, redisConn: redisConn, pgxPool: pgxPool, echo: echo.New(), tracer: tracer}
 }
 
-func (s *Server) Run() error {
+func (s *Application) Run() error {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	hp, err := NewHotelsPublisher(s.cfg, s.logger)
+	publisher, err := NewHotelsPublisher(s.cfg, s.logger)
 	if err != nil {
 		return errors.Wrap(err, "NewHotelsPublisher")
 	}
 
 	validate := validator.New()
-	hotelsPGRepo := NewHotelsPGRepository(s.pgxPool)
-	service := NewService(hotelsPGRepo, s.logger, hp)
+	repository := NewRepository(s.pgxPool)
+	service := NewService(&repository, s.logger, &publisher)
 
 	l, err := net.Listen("tcp", s.cfg.GRPCServer.Port)
 	if err != nil {
@@ -65,9 +63,9 @@ func (s *Server) Run() error {
 	router := echo.New()
 	router.GET("/metrics", echo.WrapHandler(promhttp.Handler()))
 
-	consumer := NewHotelsConsumer(s.logger, s.cfg, service)
+	consumer := NewHotelsConsumer(s.logger, s.cfg, &service)
 	if err := consumer.Initialize(); err != nil {
-		return errors.Wrap(err, "consumerImpl.Initialize")
+		return errors.Wrap(err, "ConsumerImpl.Initialize")
 	}
 	consumer.RunConsumers(ctx, cancel)
 	defer consumer.CloseChannels()
@@ -97,12 +95,12 @@ func (s *Server) Run() error {
 		),
 	)
 
-	server := NewHotelsServer(service, s.logger, validate)
-	RegisterHotelsServiceServer(grpcServer, server)
+	server := NewServer(&service, s.logger, validate)
+	RegisterHotelsServiceServer(grpcServer, &server)
 	grpcPrometheus.Register(grpcServer)
 
 	go func() {
-		s.logger.Infof("GRPC Server is listening on port: %v", s.cfg.GRPCServer.Port)
+		s.logger.Infof("GRPC Application is listening on port: %v", s.cfg.GRPCServer.Port)
 		s.logger.Fatal(grpcServer.Serve(l))
 	}()
 
@@ -120,14 +118,14 @@ func (s *Server) Run() error {
 		s.logger.Errorf("ctx.Done: %v", done)
 	}
 
-	s.logger.Info("Server Exited Properly")
+	s.logger.Info("Application Exited Properly")
 
 	if err := s.echo.Server.Shutdown(ctx); err != nil {
-		return errors.Wrap(err, "echo.Server.Shutdown")
+		return errors.Wrap(err, "echo.Application.Shutdown")
 	}
 
 	grpcServer.GracefulStop()
-	s.logger.Info("Server Exited Properly")
+	s.logger.Info("Application Exited Properly")
 
 	return nil
 }

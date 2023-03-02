@@ -12,6 +12,10 @@ import (
 	"github.com/labstack/echo/v4"
 )
 
+type Error string
+
+func (e Error) Error() string { return string(e) }
+
 const (
 	ErrBadRequest       = "Bad request"
 	ErrAlreadyExists    = "Already exists"
@@ -28,25 +32,25 @@ const (
 )
 
 var (
-	BadRequest            = errors.New("bad request")
-	WrongCredentials      = errors.New("wrong Credentials")
-	NotFound              = errors.New("not Found")
-	Unauthorized          = errors.New("unauthorized")
-	Forbidden             = errors.New("forbidden")
-	PermissionDenied      = errors.New("permission Denied")
-	ExpiredCSRFError      = errors.New("expired CSRF token")
-	WrongCSRFToken        = errors.New("wrong CSRF token")
-	CSRFNotPresented      = errors.New("CSRF not presented")
-	NotRequiredFields     = errors.New("no such required fields")
-	BadQueryParams        = errors.New("invalid query params")
-	InternalServerError   = errors.New("internal Server Error")
-	RequestTimeoutError   = errors.New("request Timeout")
-	ExistsEmailError      = errors.New("user with given email already exists")
-	InvalidJWTToken       = errors.New("invalid JWT token")
-	InvalidJWTClaims      = errors.New("invalid JWT claims")
-	NotAllowedImageHeader = errors.New("not allowed image header")
-	NoCookie              = errors.New("not found cookie header")
-	InvalidUUID           = errors.New("invalid uuid")
+	BadRequest            = Error("bad request")
+	WrongCredentials      = Error("wrong Credentials")
+	NotFound              = Error("not Found")
+	Unauthorized          = Error("unauthorized")
+	Forbidden             = Error("forbidden")
+	PermissionDenied      = Error("permission Denied")
+	ExpiredCSRFError      = Error("expired CSRF token")
+	WrongCSRFToken        = Error("wrong CSRF token")
+	CSRFNotPresented      = Error("CSRF not presented")
+	NotRequiredFields     = Error("no such required fields")
+	BadQueryParams        = Error("invalid query params")
+	InternalServerError   = Error("internal Server Error")
+	RequestTimeoutError   = Error("request Timeout")
+	ExistsEmailError      = Error("user with given email already exists")
+	InvalidJWTToken       = Error("invalid JWT token")
+	InvalidJWTClaims      = Error("invalid JWT claims")
+	NotAllowedImageHeader = Error("not allowed image header")
+	NoCookie              = Error("not found cookie header")
+	InvalidUUID           = Error("invalid uuid")
 )
 
 // Rest error interface
@@ -59,9 +63,9 @@ type RestErr interface {
 
 // Rest error struct
 type RestError struct {
-	ErrStatus int         `json:"status,omitempty"`
-	ErrError  string      `json:"error,omitempty"`
 	ErrCauses interface{} `json:"err_causes,omitempty"`
+	ErrError  string      `json:"error,omitempty"`
+	ErrStatus int         `json:"status,omitempty"`
 }
 
 // Error body

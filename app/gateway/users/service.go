@@ -3,73 +3,66 @@ package users
 import (
 	"context"
 
-	"github.com/badu/microservices-demo/pkg/config"
-	"github.com/badu/microservices-demo/pkg/grpc_client"
 	"github.com/opentracing/opentracing-go"
 	"github.com/pkg/errors"
 	uuid "github.com/satori/go.uuid"
+	"google.golang.org/grpc"
 
 	"github.com/badu/microservices-demo/app/sessions"
 	"github.com/badu/microservices-demo/app/users"
 	"github.com/badu/microservices-demo/pkg/logger"
 )
 
-type Service interface {
-	GetByID(ctx context.Context, userUUID uuid.UUID) (*UserResponse, error)
-	GetSessionByID(ctx context.Context, sessionID string) (*Session, error)
-}
-
-type serviceImpl struct {
-	mw               *grpc_client.ClientMiddleware
-	usersServicePort string
-	authServicePort  string
-	logger           logger.Logger
+type ServiceImpl struct {
+	logger                    logger.Logger
+	grpcSessionsClientFactory func(ctx context.Context) (*grpc.ClientConn, sessions.AuthorizationServiceClient, error)
+	grpcUsersClientFactory    func(ctx context.Context) (*grpc.ClientConn, users.UserServiceClient, error)
 }
 
 func NewService(
 	logger logger.Logger,
-	cfg *config.Config,
-	tracer opentracing.Tracer,
-) *serviceImpl {
-	return &serviceImpl{usersServicePort: cfg.GRPC.UserServicePort, authServicePort: cfg.GRPC.SessionServicePort, mw: grpc_client.NewClientMiddleware(logger, cfg, tracer), logger: logger}
+	grpcSessionsClientFactory func(ctx context.Context) (*grpc.ClientConn, sessions.AuthorizationServiceClient, error),
+	grpcUsersClientFactory func(ctx context.Context) (*grpc.ClientConn, users.UserServiceClient, error),
+) ServiceImpl {
+	return ServiceImpl{
+		logger:                    logger,
+		grpcSessionsClientFactory: grpcSessionsClientFactory,
+		grpcUsersClientFactory:    grpcUsersClientFactory,
+	}
 }
 
-func (s *serviceImpl) GetByID(ctx context.Context, userUUID uuid.UUID) (*UserResponse, error) {
-	span, ctx := opentracing.StartSpanFromContext(ctx, "serviceImpl.GetByID")
+func (s *ServiceImpl) GetByID(ctx context.Context, userUUID uuid.UUID) (*UserResponse, error) {
+	span, ctx := opentracing.StartSpanFromContext(ctx, "ServiceImpl.GetByID")
 	defer span.Finish()
 
-	conn, err := grpc_client.NewGRPCClientServiceConn(ctx, s.mw, s.usersServicePort)
+	conn, client, err := s.grpcUsersClientFactory(ctx)
 	if err != nil {
-		return nil, errors.Wrap(err, "userService.GetUserByID")
+		return nil, errors.Wrap(err, "ServiceImpl.GetByID")
 	}
 	defer conn.Close()
-
-	client := users.NewUserServiceClient(conn)
 
 	user, err := client.GetUserByID(ctx, &users.GetByIDRequest{UserID: userUUID.String()})
 	if err != nil {
 		return nil, errors.Wrap(err, "userService.GetUserByID")
 	}
 
-	res, err := UserFromProtoRes(user.GetUser())
+	res, err := UserFromProto(user.GetUser())
 	if err != nil {
-		return nil, errors.Wrap(err, "UserFromProtoRes")
+		return nil, errors.Wrap(err, "UserFromProto")
 	}
 
 	return res, nil
 }
 
-func (s *serviceImpl) GetSessionByID(ctx context.Context, sessionID string) (*Session, error) {
-	span, ctx := opentracing.StartSpanFromContext(ctx, "serviceImpl.GetSessionByID")
+func (s *ServiceImpl) GetSessionByID(ctx context.Context, sessionID string) (*Session, error) {
+	span, ctx := opentracing.StartSpanFromContext(ctx, "ServiceImpl.GetSessionByID")
 	defer span.Finish()
 
-	conn, err := grpc_client.NewGRPCClientServiceConn(ctx, s.mw, s.authServicePort)
+	conn, client, err := s.grpcSessionsClientFactory(ctx)
 	if err != nil {
-		return nil, errors.Wrap(err, "userService.GetUserByID")
+		return nil, errors.Wrap(err, "ServiceImpl.GetSessionByID")
 	}
 	defer conn.Close()
-
-	client := sessions.NewAuthorizationServiceClient(conn)
 
 	sessionByID, err := client.GetSessionByID(ctx, &sessions.GetSessionByIDRequest{SessionID: sessionID})
 	if err != nil {

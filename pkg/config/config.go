@@ -4,26 +4,27 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/pkg/errors"
+	"github.com/spf13/viper"
+
 	"github.com/badu/microservices-demo/pkg/jaeger"
 	"github.com/badu/microservices-demo/pkg/logger"
 	"github.com/badu/microservices-demo/pkg/postgres"
 	"github.com/badu/microservices-demo/pkg/rabbitmq"
 	"github.com/badu/microservices-demo/pkg/redis"
-	"github.com/pkg/errors"
-	"github.com/spf13/viper"
 )
 
 type Config struct {
-	GRPCServer GRPCServer
 	HttpServer HttpServer
-	Metrics    Metrics
-	GRPC       GRPC
-	AWS        AWS
 	Postgres   postgres.Config
-	Redis      redis.Config
-	Logger     logger.Config
-	Jaeger     jaeger.Config
+	GRPC       GRPC
 	RabbitMQ   rabbitmq.Config
+	Metrics    Metrics
+	Logger     logger.Config
+	Redis      redis.Config
+	AWS        AWS
+	Jaeger     jaeger.Config
+	GRPCServer GRPCServer
 }
 
 func (c *Config) ProductionMode() bool {
@@ -39,33 +40,33 @@ type AWS struct {
 }
 
 type GRPCServer struct {
-	AppVersion             string
-	Port                   string
-	CookieLifeTime         int
-	CsrfExpire             int
-	SessionID              string
-	SessionExpire          int
-	Mode                   string
 	SessionPrefix          string
+	Port                   string
+	SessionGrpcServicePort string
+	AppVersion             string
+	SessionID              string
 	CSRFPrefix             string
+	Mode                   string
+	CsrfExpire             int
+	SessionExpire          int
 	Timeout                time.Duration
 	ReadTimeout            time.Duration
 	WriteTimeout           time.Duration
 	MaxConnectionIdle      time.Duration
 	MaxConnectionAge       time.Duration
-	SessionGrpcServicePort string
+	CookieLifeTime         int
 }
 
 type HttpServer struct {
 	AppVersion        string
 	Port              string
 	PprofPort         string
+	SessionCookieName string
+	CSRFHeader        string
 	Timeout           time.Duration
 	ReadTimeout       time.Duration
 	WriteTimeout      time.Duration
 	CookieLifeTime    int
-	SessionCookieName string
-	CSRFHeader        string
 }
 
 type GRPC struct {

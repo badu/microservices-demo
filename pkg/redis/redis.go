@@ -12,10 +12,10 @@ type Config struct {
 	RedisPassword  string
 	RedisDB        string
 	RedisDefaultDB string
+	Password       string
 	MinIdleConn    int
 	PoolSize       int
 	PoolTimeout    int
-	Password       string
 	DB             int
 }
 

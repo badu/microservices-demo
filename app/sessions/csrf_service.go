@@ -21,32 +21,37 @@ const (
 	csrfSalt = "KbWaoi5xtDC3GEfBa9ovQdzOzXsuVU9I"
 )
 
-type csrfServiceImpl struct {
+type CSRFRepository interface {
+	Create(ctx context.Context, token string) error
+	GetToken(ctx context.Context, token string) (string, error)
+}
+
+type CsrfServiceImpl struct {
 	csrfRepo CSRFRepository
 }
 
-func NewCSRFService(csrfRepo CSRFRepository) *csrfServiceImpl {
-	return &csrfServiceImpl{csrfRepo: csrfRepo}
+func NewCSRFService(csrfRepo CSRFRepository) CsrfServiceImpl {
+	return CsrfServiceImpl{csrfRepo: csrfRepo}
 }
 
-func (c *csrfServiceImpl) GetCSRFToken(ctx context.Context, sesID string) (string, error) {
-	span, ctx := opentracing.StartSpanFromContext(ctx, "csrfServiceImpl.CreateToken")
+func (c *CsrfServiceImpl) GetCSRFToken(ctx context.Context, sesID string) (string, error) {
+	span, ctx := opentracing.StartSpanFromContext(ctx, "CsrfServiceImpl.CreateToken")
 	defer span.Finish()
 
 	token, err := c.makeToken(sesID)
 	if err != nil {
-		return "", errors.Wrap(err, "csrfServiceImpl.CreateToken.c.makeToken")
+		return "", errors.Wrap(err, "CsrfServiceImpl.CreateToken.c.makeToken")
 	}
 
 	if err := c.csrfRepo.Create(ctx, token); err != nil {
-		return "", errors.Wrap(err, "csrfServiceImpl.CreateToken.csrfRepo.Create")
+		return "", errors.Wrap(err, "CsrfServiceImpl.CreateToken.csrfRepo.Create")
 	}
 
 	return token, nil
 }
 
-func (c *csrfServiceImpl) ValidateCSRFToken(ctx context.Context, sesID string, token string) (bool, error) {
-	span, ctx := opentracing.StartSpanFromContext(ctx, "csrfServiceImpl.CheckToken")
+func (c *CsrfServiceImpl) ValidateCSRFToken(ctx context.Context, sesID string, token string) (bool, error) {
+	span, ctx := opentracing.StartSpanFromContext(ctx, "CsrfServiceImpl.CheckToken")
 	defer span.Finish()
 
 	existsToken, err := c.csrfRepo.GetToken(ctx, token)
@@ -57,7 +62,7 @@ func (c *csrfServiceImpl) ValidateCSRFToken(ctx context.Context, sesID string, t
 	return c.validateToken(existsToken, sesID), nil
 }
 
-func (c *csrfServiceImpl) makeToken(sessionID string) (string, error) {
+func (c *CsrfServiceImpl) makeToken(sessionID string) (string, error) {
 	hash := sha256.New()
 	_, err := io.WriteString(hash, csrfSalt+sessionID)
 	if err != nil {
@@ -67,7 +72,7 @@ func (c *csrfServiceImpl) makeToken(sessionID string) (string, error) {
 	return token, nil
 }
 
-func (c *csrfServiceImpl) validateToken(token string, sessionID string) bool {
+func (c *CsrfServiceImpl) validateToken(token string, sessionID string) bool {
 	trueToken, err := c.makeToken(sessionID)
 	if err != nil {
 		return false

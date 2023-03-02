@@ -45,13 +45,15 @@ func main() {
 	if err != nil {
 		appLogger.Fatal("cannot create tracer", err)
 	}
+
 	appLogger.Info("Jaeger connected")
 
 	opentracing.SetGlobalTracer(tracer)
 	defer closer.Close()
+
 	appLogger.Info("Opentracing connected")
 
-	s := comments.NewCommentsServer(appLogger, cfg, pgxConn, tracer)
+	app := comments.NewApplication(&appLogger, cfg, pgxConn, tracer)
 
-	appLogger.Fatal(s.Run())
+	appLogger.Fatal(app.Run())
 }

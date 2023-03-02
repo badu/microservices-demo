@@ -15,12 +15,7 @@ import (
 	"github.com/badu/microservices-demo/pkg/rabbitmq"
 )
 
-type Publisher interface {
-	CreateExchangeAndQueue(exchange, queueName, bindingKey string) (*amqp.Channel, error)
-	Publish(ctx context.Context, exchange, routingKey, contentType string, headers amqp.Table, body []byte) error
-}
-
-type publisherImpl struct {
+type PublisherImpl struct {
 	amqpConn         *amqp.Connection
 	cfg              *config.Config
 	logger           logger.Logger
@@ -35,12 +30,12 @@ func NewPublisher(
 	incomingMessages prometheus.Counter,
 	successMessages prometheus.Counter,
 	errorMessages prometheus.Counter,
-) (*publisherImpl, error) {
+) (PublisherImpl, error) {
 	amqpConn, err := rabbitmq.NewRabbitMQConn(cfg.RabbitMQ)
 	if err != nil {
-		return nil, err
+		return PublisherImpl{}, err
 	}
-	return &publisherImpl{
+	return PublisherImpl{
 		cfg:              cfg,
 		logger:           logger,
 		amqpConn:         amqpConn,
@@ -50,7 +45,7 @@ func NewPublisher(
 	}, nil
 }
 
-func (p *publisherImpl) CreateExchangeAndQueue(exchange, queueName, bindingKey string) (*amqp.Channel, error) {
+func (p *PublisherImpl) CreateExchangeAndQueue(exchange, queueName, bindingKey string) (*amqp.Channel, error) {
 	amqpChan, err := p.amqpConn.Channel()
 	if err != nil {
 		return nil, errors.Wrap(err, "p.amqpConn.Channel")
@@ -105,8 +100,8 @@ func (p *publisherImpl) CreateExchangeAndQueue(exchange, queueName, bindingKey s
 }
 
 // Publish message
-func (p *publisherImpl) Publish(ctx context.Context, exchange, routingKey, contentType string, headers amqp.Table, body []byte) error {
-	span, ctx := opentracing.StartSpanFromContext(ctx, "publisherImpl.Publish")
+func (p *PublisherImpl) Publish(ctx context.Context, exchange, routingKey, contentType string, headers amqp.Table, body []byte) error {
+	span, ctx := opentracing.StartSpanFromContext(ctx, "PublisherImpl.Publish")
 	defer span.Finish()
 
 	amqpChan, err := p.amqpConn.Channel()

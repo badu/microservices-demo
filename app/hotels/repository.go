@@ -5,20 +5,13 @@ import (
 	"fmt"
 	"log"
 
-	"github.com/badu/microservices-demo/pkg/pagination"
 	"github.com/jackc/pgx/v4/pgxpool"
 	"github.com/opentracing/opentracing-go"
 	"github.com/pkg/errors"
 	uuid "github.com/satori/go.uuid"
-)
 
-type Repository interface {
-	CreateHotel(ctx context.Context, hotel *HotelDO) (*HotelDO, error)
-	UpdateHotel(ctx context.Context, hotel *HotelDO) (*HotelDO, error)
-	UpdateHotelImage(ctx context.Context, hotelID uuid.UUID, imageURL string) error
-	GetHotelByID(ctx context.Context, hotelID uuid.UUID) (*HotelDO, error)
-	GetHotels(ctx context.Context, query *pagination.Pagination) (*List, error)
-}
+	"github.com/badu/microservices-demo/pkg/pagination"
+)
 
 const (
 	getHotelByIDQuery = `SELECT hotel_id, email, name, location, description, comments_count, 
@@ -42,16 +35,16 @@ const (
        	FROM hotels OFFSET $1 LIMIT $2`
 )
 
-type repositoryImpl struct {
+type RepositoryImpl struct {
 	db *pgxpool.Pool
 }
 
-func NewHotelsPGRepository(db *pgxpool.Pool) *repositoryImpl {
-	return &repositoryImpl{db: db}
+func NewRepository(db *pgxpool.Pool) RepositoryImpl {
+	return RepositoryImpl{db: db}
 }
 
-func (h *repositoryImpl) CreateHotel(ctx context.Context, hotel *HotelDO) (*HotelDO, error) {
-	span, ctx := opentracing.StartSpanFromContext(ctx, "repositoryImpl.CreateHotel")
+func (h *RepositoryImpl) CreateHotel(ctx context.Context, hotel *HotelDO) (*HotelDO, error) {
+	span, ctx := opentracing.StartSpanFromContext(ctx, "RepositoryImpl.CreateHotel")
 	defer span.Finish()
 
 	point := GeneratePointToGeoFromFloat64(*hotel.Latitude, *hotel.Longitude)
@@ -81,8 +74,8 @@ func (h *repositoryImpl) CreateHotel(ctx context.Context, hotel *HotelDO) (*Hote
 	return hotel, nil
 }
 
-func (h *repositoryImpl) UpdateHotel(ctx context.Context, hotel *HotelDO) (*HotelDO, error) {
-	span, ctx := opentracing.StartSpanFromContext(ctx, "repositoryImpl.UpdateHotel")
+func (h *RepositoryImpl) UpdateHotel(ctx context.Context, hotel *HotelDO) (*HotelDO, error) {
+	span, ctx := opentracing.StartSpanFromContext(ctx, "RepositoryImpl.UpdateHotel")
 	defer span.Finish()
 
 	point := GeneratePointToGeoFromFloat64(*hotel.Latitude, *hotel.Longitude)
@@ -121,8 +114,8 @@ func (h *repositoryImpl) UpdateHotel(ctx context.Context, hotel *HotelDO) (*Hote
 	return &res, nil
 }
 
-func (h *repositoryImpl) GetHotelByID(ctx context.Context, hotelID uuid.UUID) (*HotelDO, error) {
-	span, ctx := opentracing.StartSpanFromContext(ctx, "repositoryImpl.GetHotelByID")
+func (h *RepositoryImpl) GetHotelByID(ctx context.Context, hotelID uuid.UUID) (*HotelDO, error) {
+	span, ctx := opentracing.StartSpanFromContext(ctx, "RepositoryImpl.GetHotelByID")
 	defer span.Finish()
 
 	var hotel HotelDO
@@ -149,8 +142,8 @@ func (h *repositoryImpl) GetHotelByID(ctx context.Context, hotelID uuid.UUID) (*
 	return &hotel, nil
 }
 
-func (h *repositoryImpl) GetHotels(ctx context.Context, query *pagination.Pagination) (*List, error) {
-	span, ctx := opentracing.StartSpanFromContext(ctx, "repositoryImpl.GetHotels")
+func (h *RepositoryImpl) GetHotels(ctx context.Context, query *pagination.Pagination) (*List, error) {
+	span, ctx := opentracing.StartSpanFromContext(ctx, "RepositoryImpl.GetHotels")
 	defer span.Finish()
 
 	var total int
@@ -215,8 +208,8 @@ func (h *repositoryImpl) GetHotels(ctx context.Context, query *pagination.Pagina
 	}, nil
 }
 
-func (h *repositoryImpl) UpdateHotelImage(ctx context.Context, hotelID uuid.UUID, imageURL string) error {
-	span, ctx := opentracing.StartSpanFromContext(ctx, "repositoryImpl.UpdateHotelImage")
+func (h *RepositoryImpl) UpdateHotelImage(ctx context.Context, hotelID uuid.UUID, imageURL string) error {
+	span, ctx := opentracing.StartSpanFromContext(ctx, "RepositoryImpl.UpdateHotelImage")
 	defer span.Finish()
 
 	updateHotelImageQuery := `UPDATE hotels SET image = $1 WHERE hotel_id = $2`

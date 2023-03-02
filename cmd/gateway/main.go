@@ -46,6 +46,6 @@ func main() {
 	redisClient := redis.NewRedisClient(cfg.Redis)
 	appLogger.Infof("Redis connected: %-v", redisClient.PoolStats())
 
-	s := gateway.NewServer(appLogger, cfg, redisClient, tracer)
-	appLogger.Fatal(s.Run())
+	app := gateway.NewApplication(&appLogger, cfg, redisClient, tracer)
+	appLogger.Fatal(app.Run())
 }

@@ -23,7 +23,7 @@ func NewGRPCClientServiceConn(ctx context.Context, manager *ClientMiddleware, ta
 	clientGRPCConn, err := grpc.DialContext(
 		ctx,
 		target,
-		grpc.WithUnaryInterceptor(traceUtils.OpenTracingClientInterceptor(manager.GetTracer())),
+		grpc.WithUnaryInterceptor(traceUtils.OpenTracingClientInterceptor(manager.Tracer())),
 		grpc.WithUnaryInterceptor(manager.GetInterceptor()),
 		grpc.WithInsecure(),
 		grpc.WithUnaryInterceptor(grpcRetry.UnaryClientInterceptor(opts...)),

@@ -4,32 +4,18 @@ import (
 	"context"
 	"encoding/json"
 
-	"github.com/badu/microservices-demo/app/images"
-	"github.com/badu/microservices-demo/pkg/config"
-	"github.com/badu/microservices-demo/pkg/grpc_client"
 	"github.com/opentracing/opentracing-go"
 	"github.com/pkg/errors"
+	"google.golang.org/grpc"
+
 	uuid "github.com/satori/go.uuid"
 	"github.com/streadway/amqp"
 
+	"github.com/badu/microservices-demo/app/images"
 	"github.com/badu/microservices-demo/app/sessions"
 	httpErrors "github.com/badu/microservices-demo/pkg/http_errors"
 	"github.com/badu/microservices-demo/pkg/logger"
 )
-
-type Service interface {
-	Register(ctx context.Context, user *UserDO) (*UserResponse, error)
-	Login(ctx context.Context, login Login) (*UserDO, error)
-	GetByID(ctx context.Context, userID uuid.UUID) (*UserResponse, error)
-	CreateSession(ctx context.Context, userID uuid.UUID) (string, error)
-	GetSessionByID(ctx context.Context, sessionID string) (*sessions.SessionDO, error)
-	GetCSRFToken(ctx context.Context, sessionID string) (string, error)
-	DeleteSession(ctx context.Context, sessionID string) error
-	Update(ctx context.Context, user *UserUpdate) (*UserResponse, error)
-	UpdateUploadedAvatar(ctx context.Context, delivery amqp.Delivery) error
-	UpdateAvatar(ctx context.Context, data *images.UpdateAvatarMsg) error
-	GetUsersByIDs(ctx context.Context, userIDs []string) ([]*UserResponse, error)
-}
 
 const (
 	imagesExchange = "images"
@@ -37,13 +23,32 @@ const (
 	userUUIDHeader = "user_uuid"
 )
 
-type serviceImpl struct {
-	repository      Repository
-	authServicePort string
-	redisRepo       RedisRepository
-	log             logger.Logger
-	amqpPublisher   Publisher
-	mw              *grpc_client.ClientMiddleware
+type Repository interface {
+	Create(ctx context.Context, user *UserDO) (*UserResponse, error)
+	GetByID(ctx context.Context, userID uuid.UUID) (*UserResponse, error)
+	GetByEmail(ctx context.Context, email string) (*UserDO, error)
+	Update(ctx context.Context, user *UserUpdate) (*UserResponse, error)
+	UpdateAvatar(ctx context.Context, msg images.UploadedImageMsg) (*UserResponse, error)
+	GetUsersByIDs(ctx context.Context, userIDs []string) ([]*UserResponse, error)
+}
+
+type RedisRepository interface {
+	SaveUser(ctx context.Context, user *UserResponse) error
+	GetUserByID(ctx context.Context, userID uuid.UUID) (*UserResponse, error)
+	DeleteUser(ctx context.Context, userID uuid.UUID) error
+}
+
+type Publisher interface {
+	CreateExchangeAndQueue(exchange, queueName, bindingKey string) (*amqp.Channel, error)
+	Publish(ctx context.Context, exchange, routingKey, contentType string, headers amqp.Table, body []byte) error
+}
+
+type ServiceImpl struct {
+	repository        Repository
+	redisRepo         RedisRepository
+	log               logger.Logger
+	amqpPublisher     Publisher
+	grpcClientFactory func(ctx context.Context) (*grpc.ClientConn, sessions.AuthorizationServiceClient, error)
 }
 
 func NewService(
@@ -51,20 +56,18 @@ func NewService(
 	redisRepository RedisRepository,
 	log logger.Logger,
 	amqpPublisher Publisher,
-	cfg *config.Config,
-	tracer opentracing.Tracer,
-) *serviceImpl {
-	return &serviceImpl{
-		repository:      repository,
-		redisRepo:       redisRepository,
-		log:             log,
-		amqpPublisher:   amqpPublisher,
-		authServicePort: cfg.GRPC.SessionServicePort,
-		mw:              grpc_client.NewClientMiddleware(log, cfg, tracer),
+	grpcClientFactory func(ctx context.Context) (*grpc.ClientConn, sessions.AuthorizationServiceClient, error),
+) ServiceImpl {
+	return ServiceImpl{
+		repository:        repository,
+		redisRepo:         redisRepository,
+		log:               log,
+		amqpPublisher:     amqpPublisher,
+		grpcClientFactory: grpcClientFactory,
 	}
 }
 
-func (s *serviceImpl) GetByID(ctx context.Context, userID uuid.UUID) (*UserResponse, error) {
+func (s *ServiceImpl) GetByID(ctx context.Context, userID uuid.UUID) (*UserResponse, error) {
 	span, ctx := opentracing.StartSpanFromContext(ctx, "service.GetByID")
 	defer span.Finish()
 
@@ -88,7 +91,7 @@ func (s *serviceImpl) GetByID(ctx context.Context, userID uuid.UUID) (*UserRespo
 	return userResponse, nil
 }
 
-func (s *serviceImpl) Register(ctx context.Context, user *UserDO) (*UserResponse, error) {
+func (s *ServiceImpl) Register(ctx context.Context, user *UserDO) (*UserResponse, error) {
 	span, ctx := opentracing.StartSpanFromContext(ctx, "service.Register")
 	defer span.Finish()
 
@@ -104,7 +107,7 @@ func (s *serviceImpl) Register(ctx context.Context, user *UserDO) (*UserResponse
 	return created, err
 }
 
-func (s *serviceImpl) Login(ctx context.Context, login Login) (*UserDO, error) {
+func (s *ServiceImpl) Login(ctx context.Context, login Login) (*UserDO, error) {
 	span, ctx := opentracing.StartSpanFromContext(ctx, "service.Login")
 	defer span.Finish()
 
@@ -122,17 +125,15 @@ func (s *serviceImpl) Login(ctx context.Context, login Login) (*UserDO, error) {
 	return userByEmail, nil
 }
 
-func (s *serviceImpl) CreateSession(ctx context.Context, userID uuid.UUID) (string, error) {
+func (s *ServiceImpl) CreateSession(ctx context.Context, userID uuid.UUID) (string, error) {
 	span, ctx := opentracing.StartSpanFromContext(ctx, "service.CreateSession")
 	defer span.Finish()
 
-	conn, err := grpc_client.NewGRPCClientServiceConn(ctx, s.mw, s.authServicePort)
+	conn, client, err := s.grpcClientFactory(ctx)
 	if err != nil {
-		return "", errors.Wrap(err, "serviceImpl.CreateSession")
+		return "", errors.Wrap(err, "ServiceImpl.CreateSession")
 	}
 	defer conn.Close()
-
-	client := sessions.NewAuthorizationServiceClient(conn)
 
 	session, err := client.CreateSession(ctx, &sessions.CreateSessionRequest{UserID: userID.String()})
 	if err != nil {
@@ -142,17 +143,15 @@ func (s *serviceImpl) CreateSession(ctx context.Context, userID uuid.UUID) (stri
 	return session.GetSession().GetSessionID(), err
 }
 
-func (s *serviceImpl) DeleteSession(ctx context.Context, sessionID string) error {
+func (s *ServiceImpl) DeleteSession(ctx context.Context, sessionID string) error {
 	span, ctx := opentracing.StartSpanFromContext(ctx, "service.DeleteSession")
 	defer span.Finish()
 
-	conn, err := grpc_client.NewGRPCClientServiceConn(ctx, s.mw, s.authServicePort)
+	conn, client, err := s.grpcClientFactory(ctx)
 	if err != nil {
-		return errors.Wrap(err, "serviceImpl.DeleteSession")
+		return errors.Wrap(err, "ServiceImpl.DeleteSession")
 	}
 	defer conn.Close()
-
-	client := sessions.NewAuthorizationServiceClient(conn)
 
 	_, err = client.DeleteSession(ctx, &sessions.DeleteSessionRequest{SessionID: sessionID})
 	if err != nil {
@@ -162,17 +161,15 @@ func (s *serviceImpl) DeleteSession(ctx context.Context, sessionID string) error
 	return nil
 }
 
-func (s *serviceImpl) GetSessionByID(ctx context.Context, sessionID string) (*sessions.SessionDO, error) {
+func (s *ServiceImpl) GetSessionByID(ctx context.Context, sessionID string) (*sessions.SessionDO, error) {
 	span, ctx := opentracing.StartSpanFromContext(ctx, "service.GetSessionByID")
 	defer span.Finish()
 
-	conn, err := grpc_client.NewGRPCClientServiceConn(ctx, s.mw, s.authServicePort)
+	conn, client, err := s.grpcClientFactory(ctx)
 	if err != nil {
-		return nil, errors.Wrap(err, "serviceImpl.DeleteSession")
+		return nil, errors.Wrap(err, "ServiceImpl.GetSessionByID")
 	}
 	defer conn.Close()
-
-	client := sessions.NewAuthorizationServiceClient(conn)
 
 	sessionByID, err := client.GetSessionByID(ctx, &sessions.GetSessionByIDRequest{SessionID: sessionID})
 	if err != nil {
@@ -188,17 +185,15 @@ func (s *serviceImpl) GetSessionByID(ctx context.Context, sessionID string) (*se
 	return sess, nil
 }
 
-func (s *serviceImpl) GetCSRFToken(ctx context.Context, sessionID string) (string, error) {
+func (s *ServiceImpl) GetCSRFToken(ctx context.Context, sessionID string) (string, error) {
 	span, ctx := opentracing.StartSpanFromContext(ctx, "service.GetCSRFToken")
 	defer span.Finish()
 
-	conn, err := grpc_client.NewGRPCClientServiceConn(ctx, s.mw, s.authServicePort)
+	conn, client, err := s.grpcClientFactory(ctx)
 	if err != nil {
-		return "", errors.Wrap(err, "serviceImpl.DeleteSession")
+		return "", errors.Wrap(err, "ServiceImpl.GetCSRFToken")
 	}
 	defer conn.Close()
-
-	client := sessions.NewAuthorizationServiceClient(conn)
 
 	csrfToken, err := client.CreateCsrfToken(
 		ctx,
@@ -211,7 +206,7 @@ func (s *serviceImpl) GetCSRFToken(ctx context.Context, sessionID string) (strin
 	return csrfToken.GetCsrfToken().GetToken(), nil
 }
 
-func (s *serviceImpl) Update(ctx context.Context, user *UserUpdate) (*UserResponse, error) {
+func (s *ServiceImpl) Update(ctx context.Context, user *UserUpdate) (*UserResponse, error) {
 	span, ctx := opentracing.StartSpanFromContext(ctx, "service.Update")
 	defer span.Finish()
 
@@ -236,7 +231,7 @@ func (s *serviceImpl) Update(ctx context.Context, user *UserUpdate) (*UserRespon
 	return userResponse, nil
 }
 
-func (s *serviceImpl) UpdateUploadedAvatar(ctx context.Context, delivery amqp.Delivery) error {
+func (s *ServiceImpl) UpdateUploadedAvatar(ctx context.Context, delivery amqp.Delivery) error {
 	span, ctx := opentracing.StartSpanFromContext(ctx, "service.UpdateUploadedAvatar")
 	defer span.Finish()
 
@@ -270,7 +265,7 @@ func (s *serviceImpl) UpdateUploadedAvatar(ctx context.Context, delivery amqp.De
 	return nil
 }
 
-func (s *serviceImpl) UpdateAvatar(ctx context.Context, data *images.UpdateAvatarMsg) error {
+func (s *ServiceImpl) UpdateAvatar(ctx context.Context, data *images.UpdateAvatarMsg) error {
 	span, ctx := opentracing.StartSpanFromContext(ctx, "service.UpdateAvatar")
 	defer span.Finish()
 
@@ -291,7 +286,7 @@ func (s *serviceImpl) UpdateAvatar(ctx context.Context, data *images.UpdateAvata
 	return nil
 }
 
-func (s *serviceImpl) GetUsersByIDs(ctx context.Context, userIDs []string) ([]*UserResponse, error) {
+func (s *ServiceImpl) GetUsersByIDs(ctx context.Context, userIDs []string) ([]*UserResponse, error) {
 	span, ctx := opentracing.StartSpanFromContext(ctx, "service.GetUsersByIDs")
 	defer span.Finish()
 	return s.repository.GetUsersByIDs(ctx, userIDs)

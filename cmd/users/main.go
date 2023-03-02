@@ -54,6 +54,6 @@ func main() {
 	appLogger.Infof("%-v", pgxConn.Stat())
 	appLogger.Infof("%-v", redisClient.PoolStats())
 
-	s := users.NewGRPCServer(appLogger, cfg, redisClient, pgxConn, tracer)
+	s := users.NewApplication(&appLogger, cfg, redisClient, pgxConn, tracer)
 	appLogger.Fatal(s.Run())
 }

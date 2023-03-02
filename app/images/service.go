@@ -10,6 +10,7 @@ import (
 	"image/png"
 	"sync"
 
+	"github.com/aws/aws-sdk-go/service/s3"
 	"github.com/disintegration/gift"
 	"github.com/opentracing/opentracing-go"
 	"github.com/pkg/errors"
@@ -18,13 +19,6 @@ import (
 
 	"github.com/badu/microservices-demo/pkg/logger"
 )
-
-type Service interface {
-	ResizeImage(ctx context.Context, delivery amqp.Delivery) error
-	ProcessHotelImage(ctx context.Context, delivery amqp.Delivery) error
-	Create(ctx context.Context, delivery amqp.Delivery) error
-	GetImageByID(ctx context.Context, imageID uuid.UUID) (*ImageDO, error)
-}
 
 var (
 	ErrInvalidUUID            = errors.New("invalid uuid")
@@ -47,7 +41,23 @@ const (
 	updateImageRoutingKey = "update_hotel_image_key"
 )
 
-type serviceImpl struct {
+type Repository interface {
+	Create(ctx context.Context, msg *ImageDO) (*ImageDO, error)
+	GetImageByID(ctx context.Context, imageID uuid.UUID) (*ImageDO, error)
+}
+
+type AWSStorage interface {
+	PutObject(ctx context.Context, data []byte, fileType string) (string, error)
+	GetObject(ctx context.Context, key string) (*s3.GetObjectOutput, error)
+	DeleteObject(ctx context.Context, key string) error
+}
+
+type Publisher interface {
+	CreateExchangeAndQueue(exchange, queueName, bindingKey string) (*amqp.Channel, error)
+	Publish(ctx context.Context, exchange, routingKey, contentType string, headers amqp.Table, body []byte) error
+}
+
+type ServiceImpl struct {
 	pgRepo      Repository
 	awsRepo     AWSStorage
 	logger      logger.Logger
@@ -55,7 +65,7 @@ type serviceImpl struct {
 	resizerPool *sync.Pool
 }
 
-func NewService(pgRepo Repository, awsRepo AWSStorage, logger logger.Logger, publisher Publisher) *serviceImpl {
+func NewService(pgRepo Repository, awsRepo AWSStorage, logger logger.Logger, publisher Publisher) ServiceImpl {
 	resizerPool := &sync.Pool{New: func() interface{} {
 		return NewImgResizer(
 			gift.Resize(resizeWidth, resizeHeight, gift.LanczosResampling),
@@ -64,11 +74,11 @@ func NewService(pgRepo Repository, awsRepo AWSStorage, logger logger.Logger, pub
 			gift.Gamma(0.5),
 		)
 	}}
-	return &serviceImpl{pgRepo: pgRepo, awsRepo: awsRepo, logger: logger, publisher: publisher, resizerPool: resizerPool}
+	return ServiceImpl{pgRepo: pgRepo, awsRepo: awsRepo, logger: logger, publisher: publisher, resizerPool: resizerPool}
 }
 
-func (s *serviceImpl) Create(ctx context.Context, delivery amqp.Delivery) error {
-	span, ctx := opentracing.StartSpanFromContext(ctx, "serviceImpl.Create")
+func (s *ServiceImpl) Create(ctx context.Context, delivery amqp.Delivery) error {
+	span, ctx := opentracing.StartSpanFromContext(ctx, "ServiceImpl.Create")
 	defer span.Finish()
 
 	s.logger.Infof("amqp.Delivery: %-v", delivery.DeliveryTag)
@@ -89,7 +99,7 @@ func (s *serviceImpl) Create(ctx context.Context, delivery amqp.Delivery) error 
 
 	msgBytes, err := json.Marshal(createdImage)
 	if err != nil {
-		return errors.Wrap(err, "serviceImpl.Create.json.Marshal")
+		return errors.Wrap(err, "ServiceImpl.Create.json.Marshal")
 	}
 
 	headers := make(amqp.Table)
@@ -102,14 +112,14 @@ func (s *serviceImpl) Create(ctx context.Context, delivery amqp.Delivery) error 
 		headers,
 		msgBytes,
 	); err != nil {
-		return errors.Wrap(err, "serviceImpl.Create.Publish")
+		return errors.Wrap(err, "ServiceImpl.Create.Publish")
 	}
 
 	return nil
 }
 
-func (s *serviceImpl) ResizeImage(ctx context.Context, delivery amqp.Delivery) error {
-	span, ctx := opentracing.StartSpanFromContext(ctx, "serviceImpl.ResizeImage")
+func (s *ServiceImpl) ResizeImage(ctx context.Context, delivery amqp.Delivery) error {
+	span, ctx := opentracing.StartSpanFromContext(ctx, "ServiceImpl.ResizeImage")
 	defer span.Finish()
 
 	s.logger.Infof("amqp.Delivery: %-v", delivery.DeliveryTag)
@@ -138,7 +148,7 @@ func (s *serviceImpl) ResizeImage(ctx context.Context, delivery amqp.Delivery) e
 
 	msgBytes, err := json.Marshal(msg)
 	if err != nil {
-		return errors.Wrap(err, "serviceImpl.ResizeImage.json.Marshal")
+		return errors.Wrap(err, "ServiceImpl.ResizeImage.json.Marshal")
 	}
 
 	headers := make(amqp.Table)
@@ -151,14 +161,14 @@ func (s *serviceImpl) ResizeImage(ctx context.Context, delivery amqp.Delivery) e
 		headers,
 		msgBytes,
 	); err != nil {
-		return errors.Wrap(err, "serviceImpl.ResizeImage.Publish")
+		return errors.Wrap(err, "ServiceImpl.ResizeImage.Publish")
 	}
 
 	return nil
 }
 
-func (s *serviceImpl) GetImageByID(ctx context.Context, imageID uuid.UUID) (*ImageDO, error) {
-	span, ctx := opentracing.StartSpanFromContext(ctx, "serviceImpl.GetImageByID")
+func (s *ServiceImpl) GetImageByID(ctx context.Context, imageID uuid.UUID) (*ImageDO, error) {
+	span, ctx := opentracing.StartSpanFromContext(ctx, "ServiceImpl.GetImageByID")
 	defer span.Finish()
 
 	imgByID, err := s.pgRepo.GetImageByID(ctx, imageID)
@@ -169,8 +179,8 @@ func (s *serviceImpl) GetImageByID(ctx context.Context, imageID uuid.UUID) (*Ima
 	return imgByID, nil
 }
 
-func (s *serviceImpl) ProcessHotelImage(ctx context.Context, delivery amqp.Delivery) error {
-	span, ctx := opentracing.StartSpanFromContext(ctx, "serviceImpl.Create")
+func (s *ServiceImpl) ProcessHotelImage(ctx context.Context, delivery amqp.Delivery) error {
+	span, ctx := opentracing.StartSpanFromContext(ctx, "ServiceImpl.Create")
 	defer span.Finish()
 
 	s.logger.Infof("amqp.Delivery: %-v", delivery.DeliveryTag)
@@ -217,7 +227,7 @@ func (s *serviceImpl) ProcessHotelImage(ctx context.Context, delivery amqp.Deliv
 	return nil
 }
 
-func (s *serviceImpl) validateDeliveryHeaders(delivery amqp.Delivery) (*uuid.UUID, error) {
+func (s *ServiceImpl) validateDeliveryHeaders(delivery amqp.Delivery) (*uuid.UUID, error) {
 	s.logger.Infof("amqp.Delivery header: %-v", delivery.Headers)
 
 	userUUID, ok := delivery.Headers[userUUIDHeader]
@@ -237,7 +247,7 @@ func (s *serviceImpl) validateDeliveryHeaders(delivery amqp.Delivery) (*uuid.UUI
 	return &parsedUUID, nil
 }
 
-func (s *serviceImpl) extractUUIDHeader(delivery amqp.Delivery, key string) (*uuid.UUID, error) {
+func (s *ServiceImpl) extractUUIDHeader(delivery amqp.Delivery, key string) (*uuid.UUID, error) {
 	s.logger.Infof("amqp.Delivery header: %-v", delivery.Headers)
 
 	uid, ok := delivery.Headers[key]
@@ -257,7 +267,7 @@ func (s *serviceImpl) extractUUIDHeader(delivery amqp.Delivery, key string) (*uu
 	return &parsedUUID, nil
 }
 
-func (s *serviceImpl) processImage(img []byte) ([]byte, string, error) {
+func (s *ServiceImpl) processImage(img []byte) ([]byte, string, error) {
 	src, imageType, err := image.Decode(bytes.NewReader(img))
 	if err != nil {
 		return nil, "", err

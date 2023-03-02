@@ -9,21 +9,21 @@ import (
 
 // HotelDO model
 type HotelDO struct {
-	HotelID       uuid.UUID  `json:"hotel_id"`
-	Name          string     `json:"name" validate:"required,min=3,max=25"`
-	Email         string     `json:"email,omitempty" validate:"required,email"`
-	Country       string     `json:"country,omitempty" validate:"required,min=3,max=25"`
-	City          string     `json:"city,omitempty" validate:"required,min=3,max=25"`
-	Description   string     `json:"description,omitempty" validate:"required,min=10,max=250"`
-	Location      string     `json:"location" validate:"required,min=10,max=250"`
-	Rating        float64    `json:"rating" validate:"required,min=0,max=10"`
 	Image         *string    `json:"image,omitempty"`
-	Photos        []string   `json:"photos,omitempty"`
-	CommentsCount int        `json:"comments_count,omitempty"`
-	Latitude      *float64   `json:"latitude,omitempty"`
-	Longitude     *float64   `json:"longitude,omitempty"`
-	CreatedAt     *time.Time `json:"created_at"`
 	UpdatedAt     *time.Time `json:"updated_at"`
+	CreatedAt     *time.Time `json:"created_at"`
+	Longitude     *float64   `json:"longitude,omitempty"`
+	Latitude      *float64   `json:"latitude,omitempty"`
+	Location      string     `json:"location" validate:"required,min=10,max=250"`
+	Description   string     `json:"description,omitempty" validate:"required,min=10,max=250"`
+	City          string     `json:"city,omitempty" validate:"required,min=3,max=25"`
+	Country       string     `json:"country,omitempty" validate:"required,min=3,max=25"`
+	Email         string     `json:"email,omitempty" validate:"required,email"`
+	Name          string     `json:"name" validate:"required,min=3,max=25"`
+	Photos        []string   `json:"photos,omitempty"`
+	Rating        float64    `json:"rating" validate:"required,min=0,max=10"`
+	CommentsCount int        `json:"comments_count,omitempty"`
+	HotelID       uuid.UUID  `json:"hotel_id"`
 }
 
 func (h *HotelDO) GetImage() string {
@@ -71,15 +71,14 @@ func (h *HotelDO) ToProto() *Hotel {
 
 // All Hotels response with pagination
 type List struct {
+	Hotels     []*HotelDO `json:"comments"`
 	TotalCount int        `json:"totalCount"`
 	TotalPages int        `json:"totalPages"`
 	Page       int        `json:"page"`
 	Size       int        `json:"size"`
 	HasMore    bool       `json:"hasMore"`
-	Hotels     []*HotelDO `json:"comments"`
 }
 
-// ToProto
 func (h *List) ToProto() []*Hotel {
 	hotelsList := make([]*Hotel, 0, len(h.Hotels))
 	for _, hotel := range h.Hotels {
@@ -88,15 +87,14 @@ func (h *List) ToProto() []*Hotel {
 	return hotelsList
 }
 
-// UpdateHotelImageMsg
 type UpdateHotelImageMsg struct {
-	HotelID uuid.UUID `json:"hotel_id"`
 	Image   string    `json:"image,omitempty"`
+	HotelID uuid.UUID `json:"hotel_id"`
 }
 
 // UpdateHotelImageMsg
 type UploadHotelImageMsg struct {
-	HotelID     uuid.UUID `json:"hotel_id"`
-	Data        []byte    `json:"date"`
 	ContentType string    `json:"content_type"`
+	Data        []byte    `json:"date"`
+	HotelID     uuid.UUID `json:"hotel_id"`
 }

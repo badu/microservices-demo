@@ -12,23 +12,17 @@ import (
 	uuid "github.com/satori/go.uuid"
 )
 
-type RedisRepository interface {
-	SaveUser(ctx context.Context, user *UserResponse) error
-	GetUserByID(ctx context.Context, userID uuid.UUID) (*UserResponse, error)
-	DeleteUser(ctx context.Context, userID uuid.UUID) error
-}
-
-type redisRepositoryImpl struct {
+type RedisRepositoryImpl struct {
 	client     *redis.Client
 	prefix     string
 	expiration time.Duration
 }
 
-func NewRedisRepository(redisConn *redis.Client, prefix string, expiration time.Duration) *redisRepositoryImpl {
-	return &redisRepositoryImpl{client: redisConn, prefix: prefix, expiration: expiration}
+func NewRedisRepository(redisConn *redis.Client, prefix string, expiration time.Duration) RedisRepositoryImpl {
+	return RedisRepositoryImpl{client: redisConn, prefix: prefix, expiration: expiration}
 }
 
-func (u *redisRepositoryImpl) SaveUser(ctx context.Context, user *UserResponse) error {
+func (u *RedisRepositoryImpl) SaveUser(ctx context.Context, user *UserResponse) error {
 	span, ctx := opentracing.StartSpanFromContext(ctx, "userRedisRepository.SaveUser")
 	defer span.Finish()
 
@@ -44,7 +38,7 @@ func (u *redisRepositoryImpl) SaveUser(ctx context.Context, user *UserResponse) 
 	return nil
 }
 
-func (u *redisRepositoryImpl) GetUserByID(ctx context.Context, userID uuid.UUID) (*UserResponse, error) {
+func (u *RedisRepositoryImpl) GetUserByID(ctx context.Context, userID uuid.UUID) (*UserResponse, error) {
 	span, ctx := opentracing.StartSpanFromContext(ctx, "userRedisRepository.GetUserByID")
 	defer span.Finish()
 
@@ -60,7 +54,7 @@ func (u *redisRepositoryImpl) GetUserByID(ctx context.Context, userID uuid.UUID)
 	return &res, nil
 }
 
-func (u *redisRepositoryImpl) DeleteUser(ctx context.Context, userID uuid.UUID) error {
+func (u *RedisRepositoryImpl) DeleteUser(ctx context.Context, userID uuid.UUID) error {
 	span, ctx := opentracing.StartSpanFromContext(ctx, "userRedisRepository.DeleteUser")
 	defer span.Finish()
 
@@ -71,6 +65,6 @@ func (u *redisRepositoryImpl) DeleteUser(ctx context.Context, userID uuid.UUID) 
 	return nil
 }
 
-func (u *redisRepositoryImpl) createKey(userID uuid.UUID) string {
+func (u *RedisRepositoryImpl) createKey(userID uuid.UUID) string {
 	return fmt.Sprintf("%s: %s", u.prefix, userID)
 }

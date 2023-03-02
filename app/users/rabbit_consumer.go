@@ -15,7 +15,7 @@ import (
 	"github.com/badu/microservices-demo/pkg/rabbitmq"
 )
 
-type consumerImpl struct {
+type RabbitConsumerImpl struct {
 	amqpConn         *amqp.Connection
 	logger           logger.Logger
 	cfg              *config.Config
@@ -25,8 +25,8 @@ type consumerImpl struct {
 	errorMessages    prometheus.Counter
 }
 
-func NewConsumer(logger logger.Logger, cfg *config.Config, service Service) *consumerImpl {
-	return &consumerImpl{
+func NewConsumer(logger logger.Logger, cfg *config.Config, service Service) RabbitConsumerImpl {
+	return RabbitConsumerImpl{
 		logger:  logger,
 		cfg:     cfg,
 		service: service,
@@ -45,7 +45,7 @@ func NewConsumer(logger logger.Logger, cfg *config.Config, service Service) *con
 	}
 }
 
-func (c *consumerImpl) Dial() error {
+func (c *RabbitConsumerImpl) Dial() error {
 	conn, err := rabbitmq.NewRabbitMQConn(c.cfg.RabbitMQ)
 	if err != nil {
 		return err
@@ -55,7 +55,7 @@ func (c *consumerImpl) Dial() error {
 }
 
 // Consume messages
-func (c *consumerImpl) CreateExchangeAndQueue(exchangeName, queueName, bindingKey string) (*amqp.Channel, error) {
+func (c *RabbitConsumerImpl) CreateExchangeAndQueue(exchangeName, queueName, bindingKey string) (*amqp.Channel, error) {
 	ch, err := c.amqpConn.Channel()
 	if err != nil {
 		return nil, errors.Wrap(err, "Error amqpConn.Channel")
@@ -119,7 +119,7 @@ func (c *consumerImpl) CreateExchangeAndQueue(exchangeName, queueName, bindingKe
 	return ch, nil
 }
 
-func (c *consumerImpl) startConsume(
+func (c *RabbitConsumerImpl) startConsume(
 	ctx context.Context,
 	worker func(ctx context.Context, wg *sync.WaitGroup, messages <-chan amqp.Delivery),
 	workerPoolSize int,
@@ -159,7 +159,7 @@ func (c *consumerImpl) startConsume(
 	return chanErr
 }
 
-func (c *consumerImpl) RunConsumers(ctx context.Context, cancel context.CancelFunc) {
+func (c *RabbitConsumerImpl) RunConsumers(ctx context.Context, cancel context.CancelFunc) {
 	go func() {
 		if err := c.startConsume(
 			ctx,
@@ -175,7 +175,7 @@ func (c *consumerImpl) RunConsumers(ctx context.Context, cancel context.CancelFu
 
 }
 
-func (c *consumerImpl) imagesWorker(ctx context.Context, wg *sync.WaitGroup, messages <-chan amqp.Delivery) {
+func (c *RabbitConsumerImpl) imagesWorker(ctx context.Context, wg *sync.WaitGroup, messages <-chan amqp.Delivery) {
 	defer wg.Done()
 
 	for delivery := range messages {

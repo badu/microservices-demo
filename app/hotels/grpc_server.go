@@ -3,27 +3,37 @@ package hotels
 import (
 	"context"
 
-	grpcErrors "github.com/badu/microservices-demo/pkg/grpc_errors"
-	"github.com/badu/microservices-demo/pkg/pagination"
 	"github.com/go-playground/validator/v10"
 	"github.com/opentracing/opentracing-go"
 	uuid "github.com/satori/go.uuid"
+	"github.com/streadway/amqp"
 
+	grpcErrors "github.com/badu/microservices-demo/pkg/grpc_errors"
 	"github.com/badu/microservices-demo/pkg/logger"
+	"github.com/badu/microservices-demo/pkg/pagination"
 )
 
-type hotelsServer struct {
+type Service interface {
+	CreateHotel(ctx context.Context, hotel *HotelDO) (*HotelDO, error)
+	UpdateHotel(ctx context.Context, hotel *HotelDO) (*HotelDO, error)
+	GetHotelByID(ctx context.Context, hotelID uuid.UUID) (*HotelDO, error)
+	GetHotels(ctx context.Context, query *pagination.Pagination) (*List, error)
+	UploadImage(ctx context.Context, msg *UploadHotelImageMsg) error
+	UpdateHotelImage(ctx context.Context, delivery amqp.Delivery) error
+}
+
+type GRPCServer struct {
 	service  Service
 	logger   logger.Logger
 	validate *validator.Validate
 }
 
-func NewHotelsServer(service Service, logger logger.Logger, validate *validator.Validate) *hotelsServer {
-	return &hotelsServer{service: service, logger: logger, validate: validate}
+func NewServer(service Service, logger logger.Logger, validate *validator.Validate) GRPCServer {
+	return GRPCServer{service: service, logger: logger, validate: validate}
 }
 
-func (h *hotelsServer) CreateHotel(ctx context.Context, req *CreateHotelReq) (*CreateHotelRes, error) {
-	span, ctx := opentracing.StartSpanFromContext(ctx, "hotelsServer.CreateHotel")
+func (h *GRPCServer) CreateHotel(ctx context.Context, req *CreateHotelReq) (*CreateHotelRes, error) {
+	span, ctx := opentracing.StartSpanFromContext(ctx, "GRPCServer.CreateHotel")
 	defer span.Finish()
 
 	hotel := &HotelDO{
@@ -49,14 +59,14 @@ func (h *hotelsServer) CreateHotel(ctx context.Context, req *CreateHotelReq) (*C
 	createdHotel, err := h.service.CreateHotel(ctx, hotel)
 	if err != nil {
 		h.logger.Errorf("service.CreateHotel: %v", err)
-		return nil, grpcErrors.ErrorResponse(err, "hotelsServer.GetByID")
+		return nil, grpcErrors.ErrorResponse(err, "GRPCServer.GetByID")
 	}
 
 	return &CreateHotelRes{Hotel: createdHotel.ToProto()}, nil
 }
 
-func (h *hotelsServer) UpdateHotel(ctx context.Context, req *UpdateHotelReq) (*UpdateHotelRes, error) {
-	span, ctx := opentracing.StartSpanFromContext(ctx, "hotelsServer.UpdateHotel")
+func (h *GRPCServer) UpdateHotel(ctx context.Context, req *UpdateHotelReq) (*UpdateHotelRes, error) {
+	span, ctx := opentracing.StartSpanFromContext(ctx, "GRPCServer.UpdateHotel")
 	defer span.Finish()
 
 	hotelUUID, err := uuid.FromString(req.GetHotelID())
@@ -95,8 +105,8 @@ func (h *hotelsServer) UpdateHotel(ctx context.Context, req *UpdateHotelReq) (*U
 	return &UpdateHotelRes{Hotel: updatedHotel.ToProto()}, err
 }
 
-func (h *hotelsServer) GetHotelByID(ctx context.Context, req *GetByIDReq) (*GetByIDRes, error) {
-	span, ctx := opentracing.StartSpanFromContext(ctx, "hotelsServer.GetHotelByID")
+func (h *GRPCServer) GetHotelByID(ctx context.Context, req *GetByIDReq) (*GetByIDRes, error) {
+	span, ctx := opentracing.StartSpanFromContext(ctx, "GRPCServer.GetHotelByID")
 	defer span.Finish()
 
 	hotelUUID, err := uuid.FromString(req.GetHotelID())
@@ -114,8 +124,8 @@ func (h *hotelsServer) GetHotelByID(ctx context.Context, req *GetByIDReq) (*GetB
 	return &GetByIDRes{Hotel: hotel.ToProto()}, nil
 }
 
-func (h *hotelsServer) GetHotels(ctx context.Context, req *GetHotelsReq) (*GetHotelsRes, error) {
-	span, ctx := opentracing.StartSpanFromContext(ctx, "hotelsServer.GetHotels")
+func (h *GRPCServer) GetHotels(ctx context.Context, req *GetHotelsReq) (*GetHotelsRes, error) {
+	span, ctx := opentracing.StartSpanFromContext(ctx, "GRPCServer.GetHotels")
 	defer span.Finish()
 
 	query := pagination.NewPaginationQuery(int(req.GetSize()), int(req.GetPage()))
@@ -136,8 +146,8 @@ func (h *hotelsServer) GetHotels(ctx context.Context, req *GetHotelsReq) (*GetHo
 	}, nil
 }
 
-func (h *hotelsServer) UploadImage(ctx context.Context, req *UploadImageReq) (*UploadImageRes, error) {
-	span, ctx := opentracing.StartSpanFromContext(ctx, "hotelsServer.UploadImage")
+func (h *GRPCServer) UploadImage(ctx context.Context, req *UploadImageReq) (*UploadImageRes, error) {
+	span, ctx := opentracing.StartSpanFromContext(ctx, "GRPCServer.UploadImage")
 	defer span.Finish()
 
 	hotelUUID, err := uuid.FromString(req.GetHotelID())

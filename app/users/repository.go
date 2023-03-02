@@ -7,21 +7,13 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/badu/microservices-demo/app/images"
 	"github.com/jackc/pgx/v4/pgxpool"
 	"github.com/opentracing/opentracing-go"
 	"github.com/pkg/errors"
 	uuid "github.com/satori/go.uuid"
-)
 
-type Repository interface {
-	Create(ctx context.Context, user *UserDO) (*UserResponse, error)
-	GetByID(ctx context.Context, userID uuid.UUID) (*UserResponse, error)
-	GetByEmail(ctx context.Context, email string) (*UserDO, error)
-	Update(ctx context.Context, user *UserUpdate) (*UserResponse, error)
-	UpdateAvatar(ctx context.Context, msg images.UploadedImageMsg) (*UserResponse, error)
-	GetUsersByIDs(ctx context.Context, userIDs []string) ([]*UserResponse, error)
-}
+	"github.com/badu/microservices-demo/app/images"
+)
 
 const (
 	createUserQuery = `INSERT INTO users (first_name, last_name, email, password, avatar, role) 
@@ -45,17 +37,17 @@ const (
 	RETURNING user_id, first_name, last_name, email, role, avatar, updated_at, created_at`
 )
 
-type repositoryImpl struct {
+type RepositoryImpl struct {
 	db *pgxpool.Pool
 }
 
-func NewRepository(db *pgxpool.Pool) *repositoryImpl {
-	return &repositoryImpl{db: db}
+func NewRepository(db *pgxpool.Pool) RepositoryImpl {
+	return RepositoryImpl{db: db}
 }
 
 // Create new user
-func (u *repositoryImpl) Create(ctx context.Context, user *UserDO) (*UserResponse, error) {
-	span, ctx := opentracing.StartSpanFromContext(ctx, "repositoryImpl.Create")
+func (u *RepositoryImpl) Create(ctx context.Context, user *UserDO) (*UserResponse, error) {
+	span, ctx := opentracing.StartSpanFromContext(ctx, "RepositoryImpl.Create")
 	defer span.Finish()
 
 	var created UserResponse
@@ -78,8 +70,8 @@ func (u *repositoryImpl) Create(ctx context.Context, user *UserDO) (*UserRespons
 }
 
 // Get user by id
-func (u *repositoryImpl) GetByID(ctx context.Context, userID uuid.UUID) (*UserResponse, error) {
-	span, ctx := opentracing.StartSpanFromContext(ctx, "repositoryImpl.GetByID")
+func (u *RepositoryImpl) GetByID(ctx context.Context, userID uuid.UUID) (*UserResponse, error) {
+	span, ctx := opentracing.StartSpanFromContext(ctx, "RepositoryImpl.GetByID")
 	defer span.Finish()
 
 	var res UserResponse
@@ -99,9 +91,8 @@ func (u *repositoryImpl) GetByID(ctx context.Context, userID uuid.UUID) (*UserRe
 	return &res, nil
 }
 
-// GetByEmail
-func (u *repositoryImpl) GetByEmail(ctx context.Context, email string) (*UserDO, error) {
-	span, ctx := opentracing.StartSpanFromContext(ctx, "repositoryImpl.GetByEmail")
+func (u *RepositoryImpl) GetByEmail(ctx context.Context, email string) (*UserDO, error) {
+	span, ctx := opentracing.StartSpanFromContext(ctx, "RepositoryImpl.GetByEmail")
 	defer span.Finish()
 
 	var res UserDO
@@ -122,9 +113,8 @@ func (u *repositoryImpl) GetByEmail(ctx context.Context, email string) (*UserDO,
 	return &res, nil
 }
 
-// Update
-func (u *repositoryImpl) Update(ctx context.Context, user *UserUpdate) (*UserResponse, error) {
-	span, ctx := opentracing.StartSpanFromContext(ctx, "repositoryImpl.Update")
+func (u *RepositoryImpl) Update(ctx context.Context, user *UserUpdate) (*UserResponse, error) {
+	span, ctx := opentracing.StartSpanFromContext(ctx, "RepositoryImpl.Update")
 	defer span.Finish()
 
 	var res UserResponse
@@ -145,8 +135,8 @@ func (u *repositoryImpl) Update(ctx context.Context, user *UserUpdate) (*UserRes
 	return &res, nil
 }
 
-func (u *repositoryImpl) UpdateAvatar(ctx context.Context, msg images.UploadedImageMsg) (*UserResponse, error) {
-	span, ctx := opentracing.StartSpanFromContext(ctx, "repositoryImpl.UpdateUploadedAvatar")
+func (u *RepositoryImpl) UpdateAvatar(ctx context.Context, msg images.UploadedImageMsg) (*UserResponse, error) {
+	span, ctx := opentracing.StartSpanFromContext(ctx, "RepositoryImpl.UpdateUploadedAvatar")
 	defer span.Finish()
 
 	log.Printf("REPO  IMAGE: %v", msg)
@@ -167,8 +157,8 @@ func (u *repositoryImpl) UpdateAvatar(ctx context.Context, msg images.UploadedIm
 	return &res, nil
 }
 
-func (u *repositoryImpl) GetUsersByIDs(ctx context.Context, userIDs []string) ([]*UserResponse, error) {
-	span, ctx := opentracing.StartSpanFromContext(ctx, "repositoryImpl.GetUsersByIDs")
+func (u *RepositoryImpl) GetUsersByIDs(ctx context.Context, userIDs []string) ([]*UserResponse, error) {
+	span, ctx := opentracing.StartSpanFromContext(ctx, "RepositoryImpl.GetUsersByIDs")
 	defer span.Finish()
 
 	placeholders := CreateSQLPlaceholders(len(userIDs))

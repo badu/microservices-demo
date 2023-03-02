@@ -54,6 +54,6 @@ func main() {
 	appLogger.Infof("%-v", pgxConn.Stat())
 	appLogger.Infof("%-v", redisClient.PoolStats())
 
-	s := hotels.NewServer(appLogger, cfg, redisClient, pgxConn, tracer)
-	appLogger.Fatal(s.Run())
+	app := hotels.NewApplication(&appLogger, cfg, redisClient, pgxConn, tracer)
+	appLogger.Fatal(app.Run())
 }

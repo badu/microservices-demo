@@ -11,18 +11,24 @@ import (
 	"github.com/badu/microservices-demo/pkg/logger"
 )
 
-type serverImpl struct {
+type Service interface {
+	CreateSession(ctx context.Context, userID uuid.UUID) (*SessionDO, error)
+	GetSessionByID(ctx context.Context, sessID string) (*SessionDO, error)
+	DeleteSession(ctx context.Context, sessID string) error
+}
+
+type ServerImpl struct {
 	logger      logger.Logger
 	service     Service
 	csrfService CSRFService
 }
 
-func NewServer(logger logger.Logger, service Service, csrfService CSRFService) *serverImpl {
-	return &serverImpl{logger: logger, service: service, csrfService: csrfService}
+func NewServer(logger logger.Logger, service Service, csrfService CSRFService) ServerImpl {
+	return ServerImpl{logger: logger, service: service, csrfService: csrfService}
 }
 
-func (s *serverImpl) CreateSession(ctx context.Context, r *CreateSessionRequest) (*CreateSessionResponse, error) {
-	span, ctx := opentracing.StartSpanFromContext(ctx, "serverImpl.CreateSession")
+func (s *ServerImpl) CreateSession(ctx context.Context, r *CreateSessionRequest) (*CreateSessionResponse, error) {
+	span, ctx := opentracing.StartSpanFromContext(ctx, "ServerImpl.CreateSession")
 	defer span.Finish()
 
 	userUUID, err := uuid.FromString(r.UserID)
@@ -39,8 +45,8 @@ func (s *serverImpl) CreateSession(ctx context.Context, r *CreateSessionRequest)
 	return &CreateSessionResponse{Session: s.sessionJSONToProto(sess)}, nil
 }
 
-func (s *serverImpl) GetSessionByID(ctx context.Context, r *GetSessionByIDRequest) (*GetSessionByIDResponse, error) {
-	span, ctx := opentracing.StartSpanFromContext(ctx, "serverImpl.GetSessionByID")
+func (s *ServerImpl) GetSessionByID(ctx context.Context, r *GetSessionByIDRequest) (*GetSessionByIDResponse, error) {
+	span, ctx := opentracing.StartSpanFromContext(ctx, "ServerImpl.GetSessionByID")
 	defer span.Finish()
 
 	sess, err := s.service.GetSessionByID(ctx, r.SessionID)
@@ -52,8 +58,8 @@ func (s *serverImpl) GetSessionByID(ctx context.Context, r *GetSessionByIDReques
 	return &GetSessionByIDResponse{Session: s.sessionJSONToProto(sess)}, nil
 }
 
-func (s *serverImpl) DeleteSession(ctx context.Context, r *DeleteSessionRequest) (*DeleteSessionResponse, error) {
-	span, ctx := opentracing.StartSpanFromContext(ctx, "serverImpl.DeleteSession")
+func (s *ServerImpl) DeleteSession(ctx context.Context, r *DeleteSessionRequest) (*DeleteSessionResponse, error) {
+	span, ctx := opentracing.StartSpanFromContext(ctx, "ServerImpl.DeleteSession")
 	defer span.Finish()
 
 	if err := s.service.DeleteSession(ctx, r.SessionID); err != nil {
@@ -63,8 +69,8 @@ func (s *serverImpl) DeleteSession(ctx context.Context, r *DeleteSessionRequest)
 	return &DeleteSessionResponse{SessionID: r.SessionID}, nil
 }
 
-func (s *serverImpl) CreateCsrfToken(ctx context.Context, r *CreateCsrfTokenRequest) (*CreateCsrfTokenResponse, error) {
-	span, ctx := opentracing.StartSpanFromContext(ctx, "serverImpl.CreateCsrfToken")
+func (s *ServerImpl) CreateCsrfToken(ctx context.Context, r *CreateCsrfTokenRequest) (*CreateCsrfTokenResponse, error) {
+	span, ctx := opentracing.StartSpanFromContext(ctx, "ServerImpl.CreateCsrfToken")
 	defer span.Finish()
 
 	token, err := s.csrfService.GetCSRFToken(ctx, r.GetCsrfTokenInput().GetSessionID())
@@ -75,8 +81,8 @@ func (s *serverImpl) CreateCsrfToken(ctx context.Context, r *CreateCsrfTokenRequ
 	return &CreateCsrfTokenResponse{CsrfToken: &CsrfToken{Token: token}}, nil
 }
 
-func (s *serverImpl) CheckCsrfToken(ctx context.Context, r *CheckCsrfTokenRequest) (*CheckCsrfTokenResponse, error) {
-	span, ctx := opentracing.StartSpanFromContext(ctx, "serverImpl.CheckCsrfToken")
+func (s *ServerImpl) CheckCsrfToken(ctx context.Context, r *CheckCsrfTokenRequest) (*CheckCsrfTokenResponse, error) {
+	span, ctx := opentracing.StartSpanFromContext(ctx, "ServerImpl.CheckCsrfToken")
 	defer span.Finish()
 
 	isValid, err := s.csrfService.ValidateCSRFToken(ctx, r.GetCsrfTokenCheck().GetSessionID(), r.GetCsrfTokenCheck().GetToken())
@@ -87,7 +93,7 @@ func (s *serverImpl) CheckCsrfToken(ctx context.Context, r *CheckCsrfTokenReques
 	return &CheckCsrfTokenResponse{CheckResult: &CheckResult{Result: isValid}}, nil
 }
 
-func (s *serverImpl) sessionJSONToProto(sess *SessionDO) *Session {
+func (s *ServerImpl) sessionJSONToProto(sess *SessionDO) *Session {
 	return &Session{
 		UserID:    sess.UserID.String(),
 		SessionID: sess.SessionID,

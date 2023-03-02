@@ -3,29 +3,37 @@ package comments
 import (
 	"context"
 
-	"github.com/badu/microservices-demo/pkg/pagination"
 	"github.com/go-playground/validator/v10"
 	"github.com/opentracing/opentracing-go"
 	uuid "github.com/satori/go.uuid"
+
+	"github.com/badu/microservices-demo/pkg/pagination"
 
 	"github.com/badu/microservices-demo/pkg/config"
 	grpcErrors "github.com/badu/microservices-demo/pkg/grpc_errors"
 	"github.com/badu/microservices-demo/pkg/logger"
 )
 
-type serverImpl struct {
+type Service interface {
+	Create(ctx context.Context, comment *CommentDO) (*CommentDO, error)
+	GetByID(ctx context.Context, commentID uuid.UUID) (*CommentDO, error)
+	Update(ctx context.Context, comment *CommentDO) (*CommentDO, error)
+	GetByHotelID(ctx context.Context, hotelID uuid.UUID, query *pagination.Pagination) (*FullList, error)
+}
+
+type GRPCServer struct {
 	service  Service
 	logger   logger.Logger
 	cfg      *config.Config
 	validate *validator.Validate
 }
 
-func NewServer(service Service, logger logger.Logger, cfg *config.Config, validate *validator.Validate) *serverImpl {
-	return &serverImpl{service: service, logger: logger, cfg: cfg, validate: validate}
+func NewServer(service Service, logger logger.Logger, cfg *config.Config, validate *validator.Validate) GRPCServer {
+	return GRPCServer{service: service, logger: logger, cfg: cfg, validate: validate}
 }
 
-func (c *serverImpl) CreateComment(ctx context.Context, req *CreateCommentReq) (*CreateCommentRes, error) {
-	span, ctx := opentracing.StartSpanFromContext(ctx, "serverImpl.CreateComment")
+func (c *GRPCServer) CreateComment(ctx context.Context, req *CreateCommentReq) (*CreateCommentRes, error) {
+	span, ctx := opentracing.StartSpanFromContext(ctx, "GRPCServer.CreateComment")
 	defer span.Finish()
 
 	comm, err := c.protoToModel(req)
@@ -50,9 +58,8 @@ func (c *serverImpl) CreateComment(ctx context.Context, req *CreateCommentReq) (
 	return &CreateCommentRes{Comment: createdComm.ToProto()}, nil
 }
 
-// GetCommByID
-func (c *serverImpl) GetCommByID(ctx context.Context, req *GetCommByIDReq) (*GetCommByIDRes, error) {
-	span, ctx := opentracing.StartSpanFromContext(ctx, "serverImpl.GetCommByID")
+func (c *GRPCServer) GetCommByID(ctx context.Context, req *GetCommByIDReq) (*GetCommByIDRes, error) {
+	span, ctx := opentracing.StartSpanFromContext(ctx, "GRPCServer.GetCommByID")
 	defer span.Finish()
 
 	commUUID, err := uuid.FromString(req.GetCommentID())
@@ -70,9 +77,8 @@ func (c *serverImpl) GetCommByID(ctx context.Context, req *GetCommByIDReq) (*Get
 	return &GetCommByIDRes{Comment: comm.ToProto()}, nil
 }
 
-// UpdateComment
-func (c *serverImpl) UpdateComment(ctx context.Context, req *UpdateCommReq) (*UpdateCommRes, error) {
-	span, ctx := opentracing.StartSpanFromContext(ctx, "serverImpl.UpdateComment")
+func (c *GRPCServer) UpdateComment(ctx context.Context, req *UpdateCommReq) (*UpdateCommRes, error) {
+	span, ctx := opentracing.StartSpanFromContext(ctx, "GRPCServer.UpdateComment")
 	defer span.Finish()
 
 	commUUID, err := uuid.FromString(req.GetCommentID())
@@ -101,9 +107,8 @@ func (c *serverImpl) UpdateComment(ctx context.Context, req *UpdateCommReq) (*Up
 	return &UpdateCommRes{Comment: updatedComm.ToProto()}, nil
 }
 
-// GetByHotelID
-func (c *serverImpl) GetByHotelID(ctx context.Context, req *GetByHotelReq) (*GetByHotelRes, error) {
-	span, ctx := opentracing.StartSpanFromContext(ctx, "serverImpl.GetByHotelID")
+func (c *GRPCServer) GetByHotelID(ctx context.Context, req *GetByHotelReq) (*GetByHotelRes, error) {
+	span, ctx := opentracing.StartSpanFromContext(ctx, "GRPCServer.GetByHotelID")
 	defer span.Finish()
 
 	hotelUUID, err := uuid.FromString(req.GetHotelID())
@@ -130,7 +135,7 @@ func (c *serverImpl) GetByHotelID(ctx context.Context, req *GetByHotelReq) (*Get
 	}, nil
 }
 
-func (c *serverImpl) protoToModel(req *CreateCommentReq) (*CommentDO, error) {
+func (c *GRPCServer) protoToModel(req *CreateCommentReq) (*CommentDO, error) {
 	hotelUUID, err := uuid.FromString(req.GetHotelID())
 	if err != nil {
 		return nil, err

@@ -17,12 +17,6 @@ import (
 	"github.com/badu/microservices-demo/pkg/config"
 )
 
-type AWSStorage interface {
-	PutObject(ctx context.Context, data []byte, fileType string) (string, error)
-	GetObject(ctx context.Context, key string) (*s3.GetObjectOutput, error)
-	DeleteObject(ctx context.Context, key string) error
-}
-
 const (
 	imagesBucket = "images"
 )
@@ -53,17 +47,17 @@ func NewS3Session(cfg *config.Config) *s3.S3 {
 
 }
 
-type awsStorageClient struct {
+type AWSS3Client struct {
 	cfg      *config.Config
 	s3Client *s3.S3
 }
 
-func NewAWSStorage(cfg *config.Config, s3 *s3.S3) *awsStorageClient {
-	return &awsStorageClient{cfg: cfg, s3Client: s3}
+func NewAWSStorage(cfg *config.Config, s3 *s3.S3) AWSS3Client {
+	return AWSS3Client{cfg: cfg, s3Client: s3}
 }
 
-func (i *awsStorageClient) PutObject(ctx context.Context, data []byte, fileType string) (string, error) {
-	span, ctx := opentracing.StartSpanFromContext(ctx, "awsStorageClient.PutObject")
+func (i *AWSS3Client) PutObject(ctx context.Context, data []byte, fileType string) (string, error) {
+	span, ctx := opentracing.StartSpanFromContext(ctx, "AWSS3Client.PutObject")
 	defer span.Finish()
 
 	newFilename := uuid.NewV4().String()
@@ -84,8 +78,8 @@ func (i *awsStorageClient) PutObject(ctx context.Context, data []byte, fileType 
 	return i.getFilePublicURL(key), err
 }
 
-func (i *awsStorageClient) GetObject(ctx context.Context, key string) (*s3.GetObjectOutput, error) {
-	span, ctx := opentracing.StartSpanFromContext(ctx, "awsStorageClient.GetObject")
+func (i *AWSS3Client) GetObject(ctx context.Context, key string) (*s3.GetObjectOutput, error) {
+	span, ctx := opentracing.StartSpanFromContext(ctx, "AWSS3Client.GetObject")
 	defer span.Finish()
 
 	obj, err := i.s3Client.GetObjectWithContext(ctx, &s3.GetObjectInput{
@@ -99,8 +93,8 @@ func (i *awsStorageClient) GetObject(ctx context.Context, key string) (*s3.GetOb
 	return obj, nil
 }
 
-func (i *awsStorageClient) DeleteObject(ctx context.Context, key string) error {
-	span, ctx := opentracing.StartSpanFromContext(ctx, "awsStorageClient.DeleteObject")
+func (i *AWSS3Client) DeleteObject(ctx context.Context, key string) error {
+	span, ctx := opentracing.StartSpanFromContext(ctx, "AWSS3Client.DeleteObject")
 	defer span.Finish()
 
 	_, err := i.s3Client.DeleteObjectWithContext(ctx, &s3.DeleteObjectInput{
@@ -114,10 +108,10 @@ func (i *awsStorageClient) DeleteObject(ctx context.Context, key string) error {
 	return nil
 }
 
-func (i *awsStorageClient) getFileKey(fileID string, fileType string) string {
+func (i *AWSS3Client) getFileKey(fileID string, fileType string) string {
 	return fmt.Sprintf("%s.%s", fileID, fileType)
 }
 
-func (i *awsStorageClient) getFilePublicURL(key string) string {
+func (i *AWSS3Client) getFilePublicURL(key string) string {
 	return i.cfg.AWS.S3EndPointMinio + "/" + imagesBucket + "/" + key
 }

@@ -12,11 +12,15 @@ import (
 	"google.golang.org/grpc/status"
 )
 
-var (
-	ErrNotFound         = errors.New("not found")
-	ErrNoCtxMetaData    = errors.New("no ctx metadata")
-	ErrInvalidSessionId = errors.New("invalid session id")
-	ErrEmailExists      = errors.New("email already exists")
+type Error string
+
+func (e Error) Error() string { return string(e) }
+
+const (
+	ErrNotFound         = Error("not found")
+	ErrNoCtxMetaData    = Error("no ctx metadata")
+	ErrInvalidSessionId = Error("invalid session id")
+	ErrEmailExists      = Error("email already exists")
 )
 
 // Parse error and get code
