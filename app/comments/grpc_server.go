@@ -32,8 +32,8 @@ func NewServer(service Service, logger logger.Logger, cfg *config.Config, valida
 	return GRPCServer{service: service, logger: logger, cfg: cfg, validate: validate}
 }
 
-func (c *GRPCServer) CreateComment(ctx context.Context, req *CreateCommentReq) (*CreateCommentRes, error) {
-	span, ctx := opentracing.StartSpanFromContext(ctx, "GRPCServer.CreateComment")
+func (c *GRPCServer) CreateComment(ctx context.Context, req *CreateCommentRequest) (*CreateCommentResponse, error) {
+	span, ctx := opentracing.StartSpanFromContext(ctx, "comments_grpc_server.CreateComment")
 	defer span.Finish()
 
 	comm, err := c.protoToModel(req)
@@ -55,11 +55,11 @@ func (c *GRPCServer) CreateComment(ctx context.Context, req *CreateCommentReq) (
 
 	c.logger.Infof("CREATED: %-v", createdComm)
 
-	return &CreateCommentRes{Comment: createdComm.ToProto()}, nil
+	return &CreateCommentResponse{Comment: createdComm.ToProto()}, nil
 }
 
-func (c *GRPCServer) GetCommByID(ctx context.Context, req *GetCommByIDReq) (*GetCommByIDRes, error) {
-	span, ctx := opentracing.StartSpanFromContext(ctx, "GRPCServer.GetCommByID")
+func (c *GRPCServer) GetCommByID(ctx context.Context, req *GetCommentByIDRequest) (*GetCommentByIDResponse, error) {
+	span, ctx := opentracing.StartSpanFromContext(ctx, "comments_grpc_server.GetCommByID")
 	defer span.Finish()
 
 	commUUID, err := uuid.FromString(req.GetCommentID())
@@ -74,11 +74,11 @@ func (c *GRPCServer) GetCommByID(ctx context.Context, req *GetCommByIDReq) (*Get
 		return nil, grpcErrors.ErrorResponse(err, err.Error())
 	}
 
-	return &GetCommByIDRes{Comment: comm.ToProto()}, nil
+	return &GetCommentByIDResponse{Comment: comm.ToProto()}, nil
 }
 
-func (c *GRPCServer) UpdateComment(ctx context.Context, req *UpdateCommReq) (*UpdateCommRes, error) {
-	span, ctx := opentracing.StartSpanFromContext(ctx, "GRPCServer.UpdateComment")
+func (c *GRPCServer) UpdateComment(ctx context.Context, req *UpdateCommentRequest) (*UpdateCommentResponse, error) {
+	span, ctx := opentracing.StartSpanFromContext(ctx, "comments_grpc_server.UpdateComment")
 	defer span.Finish()
 
 	commUUID, err := uuid.FromString(req.GetCommentID())
@@ -104,11 +104,11 @@ func (c *GRPCServer) UpdateComment(ctx context.Context, req *UpdateCommReq) (*Up
 		return nil, grpcErrors.ErrorResponse(err, err.Error())
 	}
 
-	return &UpdateCommRes{Comment: updatedComm.ToProto()}, nil
+	return &UpdateCommentResponse{Comment: updatedComm.ToProto()}, nil
 }
 
-func (c *GRPCServer) GetByHotelID(ctx context.Context, req *GetByHotelReq) (*GetByHotelRes, error) {
-	span, ctx := opentracing.StartSpanFromContext(ctx, "GRPCServer.GetByHotelID")
+func (c *GRPCServer) GetByHotelID(ctx context.Context, req *GetCommentsByHotelRequest) (*GetCommentsByHotelResponse, error) {
+	span, ctx := opentracing.StartSpanFromContext(ctx, "comments_grpc_server.GetByHotelID")
 	defer span.Finish()
 
 	hotelUUID, err := uuid.FromString(req.GetHotelID())
@@ -125,7 +125,7 @@ func (c *GRPCServer) GetByHotelID(ctx context.Context, req *GetByHotelReq) (*Get
 		return nil, grpcErrors.ErrorResponse(err, err.Error())
 	}
 
-	return &GetByHotelRes{
+	return &GetCommentsByHotelResponse{
 		TotalCount: int64(commentsList.TotalCount),
 		TotalPages: int64(commentsList.TotalPages),
 		Page:       int64(commentsList.Page),
@@ -135,7 +135,7 @@ func (c *GRPCServer) GetByHotelID(ctx context.Context, req *GetByHotelReq) (*Get
 	}, nil
 }
 
-func (c *GRPCServer) protoToModel(req *CreateCommentReq) (*CommentDO, error) {
+func (c *GRPCServer) protoToModel(req *CreateCommentRequest) (*CommentDO, error) {
 	hotelUUID, err := uuid.FromString(req.GetHotelID())
 	if err != nil {
 		return nil, err

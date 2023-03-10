@@ -15,8 +15,7 @@ import (
 )
 
 func main() {
-	envConfig := os.Getenv("config")
-	configPath := config.GetConfigPath(envConfig)
+	configPath := config.GetConfigPath(os.Getenv("config"))
 	cfg, err := config.GetConfig(configPath)
 	if err != nil {
 		log.Fatalf("Loading config: %v", err)
@@ -46,12 +45,12 @@ func main() {
 		appLogger.Fatal("cannot create tracer", err)
 	}
 
-	appLogger.Info("Jaeger connected")
+	appLogger.Info("connected to Jaeger")
 
 	opentracing.SetGlobalTracer(tracer)
 	defer closer.Close()
 
-	appLogger.Info("Opentracing connected")
+	appLogger.Info("connected to Opentracing")
 
 	app := comments.NewApplication(&appLogger, cfg, pgxConn, tracer)
 

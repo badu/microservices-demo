@@ -14,7 +14,7 @@ const (
 	backoffLinear = 100 * time.Millisecond
 )
 
-func NewGRPCClientServiceConn(ctx context.Context, manager *ClientMiddleware, target string) (*grpc.ClientConn, error) {
+func NewGRPCClientServiceConn(ctx context.Context, commonMW *ClientMiddleware, target string) (*grpc.ClientConn, error) {
 	opts := []grpcRetry.CallOption{
 		grpcRetry.WithBackoff(grpcRetry.BackoffLinear(backoffLinear)),
 		grpcRetry.WithCodes(codes.NotFound, codes.Aborted),
@@ -23,8 +23,8 @@ func NewGRPCClientServiceConn(ctx context.Context, manager *ClientMiddleware, ta
 	clientGRPCConn, err := grpc.DialContext(
 		ctx,
 		target,
-		grpc.WithUnaryInterceptor(traceUtils.OpenTracingClientInterceptor(manager.Tracer())),
-		grpc.WithUnaryInterceptor(manager.GetInterceptor()),
+		grpc.WithUnaryInterceptor(traceUtils.OpenTracingClientInterceptor(commonMW.Tracer())),
+		grpc.WithUnaryInterceptor(commonMW.GetInterceptor()),
 		grpc.WithInsecure(),
 		grpc.WithUnaryInterceptor(grpcRetry.UnaryClientInterceptor(opts...)),
 	)

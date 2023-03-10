@@ -37,7 +37,7 @@ func NewServer(service Service, logger logger.Logger) ServerImpl {
 }
 
 func (e *ServerImpl) GetUserByID(ctx context.Context, r *GetByIDRequest) (*GetByIDResponse, error) {
-	span, ctx := opentracing.StartSpanFromContext(ctx, "ServerImpl.GetUserByID")
+	span, ctx := opentracing.StartSpanFromContext(ctx, "users_grpc_server.GetUserByID")
 	defer span.Finish()
 
 	userUUID, err := uuid.FromString(r.GetUserID())
@@ -55,8 +55,8 @@ func (e *ServerImpl) GetUserByID(ctx context.Context, r *GetByIDRequest) (*GetBy
 	return &GetByIDResponse{User: foundUser.ToProto()}, nil
 }
 
-func (e *ServerImpl) GetUsersByIDs(ctx context.Context, req *GetByIDsReq) (*GetByIDsRes, error) {
-	span, ctx := opentracing.StartSpanFromContext(ctx, "ServerImpl.GetUserByID")
+func (e *ServerImpl) GetUsersByIDs(ctx context.Context, req *GetUsersByIDsRequest) (*GetUsersByIDsResponse, error) {
+	span, ctx := opentracing.StartSpanFromContext(ctx, "users_grpc_server.GetUserByID")
 	defer span.Finish()
 
 	usersByIDs, err := e.service.GetUsersByIDs(ctx, req.GetUsersIDs())
@@ -68,7 +68,7 @@ func (e *ServerImpl) GetUsersByIDs(ctx context.Context, req *GetByIDsReq) (*GetB
 	response := idsToUUID(usersByIDs)
 	e.logger.Infof("USERS LIST RESPONSE: %v", response)
 
-	return &GetByIDsRes{Users: response}, nil
+	return &GetUsersByIDsResponse{Users: response}, nil
 }
 
 func idsToUUID(users []*UserResponse) []*User {

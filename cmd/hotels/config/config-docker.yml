@@ -45,7 +45,7 @@ logger:
   DisableStacktrace: false
   Encoding: json
   Level: info
-
+  PrintConfig: false
 
 redis:
   RedisAddr: localhost:6379

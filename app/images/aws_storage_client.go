@@ -3,6 +3,7 @@ package images
 import (
 	"bytes"
 	"context"
+	"errors"
 	"fmt"
 	"log"
 
@@ -11,7 +12,6 @@ import (
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/s3"
 	"github.com/opentracing/opentracing-go"
-	"github.com/pkg/errors"
 	uuid "github.com/satori/go.uuid"
 
 	"github.com/badu/microservices-demo/pkg/config"
@@ -57,7 +57,7 @@ func NewAWSStorage(cfg *config.Config, s3 *s3.S3) AWSS3Client {
 }
 
 func (i *AWSS3Client) PutObject(ctx context.Context, data []byte, fileType string) (string, error) {
-	span, ctx := opentracing.StartSpanFromContext(ctx, "AWSS3Client.PutObject")
+	span, ctx := opentracing.StartSpanFromContext(ctx, "aws_s3_client.PutObject")
 	defer span.Finish()
 
 	newFilename := uuid.NewV4().String()
@@ -70,7 +70,7 @@ func (i *AWSS3Client) PutObject(ctx context.Context, data []byte, fileType strin
 		ACL:    aws.String(s3.BucketCannedACLPublicRead),
 	})
 	if err != nil {
-		return "", errors.Wrap(err, "s3Client.PutObjectWithContext")
+		return "", errors.Join(err, errors.New("aws s3 client saving object to bucket"))
 	}
 
 	log.Printf("object : %-v", object)
@@ -79,7 +79,7 @@ func (i *AWSS3Client) PutObject(ctx context.Context, data []byte, fileType strin
 }
 
 func (i *AWSS3Client) GetObject(ctx context.Context, key string) (*s3.GetObjectOutput, error) {
-	span, ctx := opentracing.StartSpanFromContext(ctx, "AWSS3Client.GetObject")
+	span, ctx := opentracing.StartSpanFromContext(ctx, "aws_s3_client.GetObject")
 	defer span.Finish()
 
 	obj, err := i.s3Client.GetObjectWithContext(ctx, &s3.GetObjectInput{
@@ -87,14 +87,14 @@ func (i *AWSS3Client) GetObject(ctx context.Context, key string) (*s3.GetObjectO
 		Key:    aws.String(key),
 	})
 	if err != nil {
-		return nil, errors.Wrap(err, "s3Client.GetObjectWithContext")
+		return nil, errors.Join(err, errors.New("aws s3 client getting object from bucket"))
 	}
 
 	return obj, nil
 }
 
 func (i *AWSS3Client) DeleteObject(ctx context.Context, key string) error {
-	span, ctx := opentracing.StartSpanFromContext(ctx, "AWSS3Client.DeleteObject")
+	span, ctx := opentracing.StartSpanFromContext(ctx, "aws_s3_client.DeleteObject")
 	defer span.Finish()
 
 	_, err := i.s3Client.DeleteObjectWithContext(ctx, &s3.DeleteObjectInput{
@@ -102,7 +102,7 @@ func (i *AWSS3Client) DeleteObject(ctx context.Context, key string) error {
 		Key:    aws.String(key),
 	})
 	if err != nil {
-		return errors.Wrap(err, "s3Client.DeleteObjectWithContext")
+		return errors.Join(err, errors.New("aws s3 client deleting object from bucket"))
 	}
 
 	return nil

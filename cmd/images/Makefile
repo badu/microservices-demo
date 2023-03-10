@@ -2,7 +2,7 @@
 # Go migrate postgresql Images service
 # ==============================================================================
 
-images_dbname = images
+images_dbname = images_db
 images_port = 5434
 images_SSL_MODE = disable
 

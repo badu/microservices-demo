@@ -2,9 +2,9 @@ package users
 
 import (
 	"context"
+	"errors"
 
 	"github.com/opentracing/opentracing-go"
-	"github.com/pkg/errors"
 	uuid "github.com/satori/go.uuid"
 	"google.golang.org/grpc"
 
@@ -32,47 +32,47 @@ func NewService(
 }
 
 func (s *ServiceImpl) GetByID(ctx context.Context, userUUID uuid.UUID) (*UserResponse, error) {
-	span, ctx := opentracing.StartSpanFromContext(ctx, "ServiceImpl.GetByID")
+	span, ctx := opentracing.StartSpanFromContext(ctx, "gateway_users_service.GetByID")
 	defer span.Finish()
 
 	conn, client, err := s.grpcUsersClientFactory(ctx)
 	if err != nil {
-		return nil, errors.Wrap(err, "ServiceImpl.GetByID")
+		return nil, errors.Join(err, errors.New("creating grpc client"))
 	}
 	defer conn.Close()
 
 	user, err := client.GetUserByID(ctx, &users.GetByIDRequest{UserID: userUUID.String()})
 	if err != nil {
-		return nil, errors.Wrap(err, "userService.GetUserByID")
+		return nil, errors.Join(err, errors.New("grpc client responded with error"))
 	}
 
-	res, err := UserFromProto(user.GetUser())
+	res, err := fromProto(user.GetUser())
 	if err != nil {
-		return nil, errors.Wrap(err, "UserFromProto")
+		return nil, errors.Join(err, errors.New("transforming grpc client response"))
 	}
 
 	return res, nil
 }
 
 func (s *ServiceImpl) GetSessionByID(ctx context.Context, sessionID string) (*Session, error) {
-	span, ctx := opentracing.StartSpanFromContext(ctx, "ServiceImpl.GetSessionByID")
+	span, ctx := opentracing.StartSpanFromContext(ctx, "gateway_users_service.GetSessionByID")
 	defer span.Finish()
 
 	conn, client, err := s.grpcSessionsClientFactory(ctx)
 	if err != nil {
-		return nil, errors.Wrap(err, "ServiceImpl.GetSessionByID")
+		return nil, errors.Join(err, errors.New("creating grpc client"))
 	}
 	defer conn.Close()
 
 	sessionByID, err := client.GetSessionByID(ctx, &sessions.GetSessionByIDRequest{SessionID: sessionID})
 	if err != nil {
-		return nil, errors.Wrap(err, "sessClient.GetSessionByID")
+		return nil, errors.Join(err, errors.New("grpc client responded with error"))
 	}
 
 	sess := &Session{}
 	sess, err = sess.FromProto(sessionByID.GetSession())
 	if err != nil {
-		return nil, errors.Wrap(err, "sess.FromProto")
+		return nil, errors.Join(err, errors.New("transforming grpc client response"))
 	}
 
 	return sess, nil

@@ -2,10 +2,10 @@ package hotels
 
 import (
 	"context"
+	"errors"
 	"time"
 
 	"github.com/opentracing/opentracing-go"
-	"github.com/pkg/errors"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promauto"
 	uuid "github.com/satori/go.uuid"
@@ -44,7 +44,7 @@ func NewHotelsPublisher(cfg *config.Config, logger logger.Logger) (PublisherImpl
 func (p *PublisherImpl) CreateExchangeAndQueue(exchange, queueName, bindingKey string) (*amqp.Channel, error) {
 	amqpChan, err := p.amqpConn.Channel()
 	if err != nil {
-		return nil, errors.Wrap(err, "p.amqpConn.Channel")
+		return nil, errors.Join(err, errors.New("asking concurrent server channel"))
 	}
 
 	p.logger.Infof("Declaring exchange: %s", exchange)
@@ -57,7 +57,7 @@ func (p *PublisherImpl) CreateExchangeAndQueue(exchange, queueName, bindingKey s
 		exchangeNoWait,
 		nil,
 	); err != nil {
-		return nil, errors.Wrap(err, "Error ch.ExchangeDeclare")
+		return nil, errors.Join(err, errors.New("while exchangeDeclare"))
 	}
 
 	queue, err := amqpChan.QueueDeclare(
@@ -69,7 +69,7 @@ func (p *PublisherImpl) CreateExchangeAndQueue(exchange, queueName, bindingKey s
 		nil,
 	)
 	if err != nil {
-		return nil, errors.Wrap(err, "Error ch.QueueDeclare")
+		return nil, errors.Join(err, errors.New("while QueueDeclare"))
 	}
 
 	p.logger.Infof("Declared queue, binding it to exchange: Queue: %v, messageCount: %v, "+
@@ -89,19 +89,19 @@ func (p *PublisherImpl) CreateExchangeAndQueue(exchange, queueName, bindingKey s
 		nil,
 	)
 	if err != nil {
-		return nil, errors.Wrap(err, "Error ch.QueueBind")
+		return nil, errors.Join(err, errors.New("while QueueBind"))
 	}
 
 	return amqpChan, nil
 }
 
 func (p *PublisherImpl) Publish(ctx context.Context, exchange, routingKey, contentType string, headers amqp.Table, body []byte) error {
-	span, ctx := opentracing.StartSpanFromContext(ctx, "PublisherImpl.Publish")
+	span, ctx := opentracing.StartSpanFromContext(ctx, "rabbit_publisher_hotels.Publish")
 	defer span.Finish()
 
 	amqpChan, err := p.amqpConn.Channel()
 	if err != nil {
-		return errors.Wrap(err, "p.amqpConn.Channel")
+		return errors.Join(err, errors.New("asking concurrent channel"))
 	}
 	defer amqpChan.Close()
 
@@ -122,7 +122,7 @@ func (p *PublisherImpl) Publish(ctx context.Context, exchange, routingKey, conte
 		},
 	); err != nil {
 		errorPublisherMessages.Inc()
-		return errors.Wrap(err, "ch.Publish")
+		return errors.Join(err, errors.New("while publishing"))
 	}
 
 	successPublisherMessages.Inc()

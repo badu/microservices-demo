@@ -2,12 +2,12 @@ package hotels
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"log"
 
 	"github.com/jackc/pgx/v4/pgxpool"
 	"github.com/opentracing/opentracing-go"
-	"github.com/pkg/errors"
 	uuid "github.com/satori/go.uuid"
 
 	"github.com/badu/microservices-demo/pkg/pagination"
@@ -44,7 +44,7 @@ func NewRepository(db *pgxpool.Pool) RepositoryImpl {
 }
 
 func (h *RepositoryImpl) CreateHotel(ctx context.Context, hotel *HotelDO) (*HotelDO, error) {
-	span, ctx := opentracing.StartSpanFromContext(ctx, "RepositoryImpl.CreateHotel")
+	span, ctx := opentracing.StartSpanFromContext(ctx, "hotels_repository.CreateHotel")
 	defer span.Finish()
 
 	point := GeneratePointToGeoFromFloat64(*hotel.Latitude, *hotel.Longitude)
@@ -64,7 +64,7 @@ func (h *RepositoryImpl) CreateHotel(ctx context.Context, hotel *HotelDO) (*Hote
 		hotel.City,
 		hotel.Rating,
 	).Scan(&res.HotelID, &res.CreatedAt, &res.UpdatedAt); err != nil {
-		return nil, errors.Wrap(err, "CreateHotel.Scan")
+		return nil, errors.Join(err, errors.New("while scanning"))
 	}
 
 	hotel.HotelID = res.HotelID
@@ -75,7 +75,7 @@ func (h *RepositoryImpl) CreateHotel(ctx context.Context, hotel *HotelDO) (*Hote
 }
 
 func (h *RepositoryImpl) UpdateHotel(ctx context.Context, hotel *HotelDO) (*HotelDO, error) {
-	span, ctx := opentracing.StartSpanFromContext(ctx, "RepositoryImpl.UpdateHotel")
+	span, ctx := opentracing.StartSpanFromContext(ctx, "hotels_repository.UpdateHotel")
 	defer span.Finish()
 
 	point := GeneratePointToGeoFromFloat64(*hotel.Latitude, *hotel.Longitude)
@@ -108,14 +108,14 @@ func (h *RepositoryImpl) UpdateHotel(ctx context.Context, hotel *HotelDO) (*Hote
 		&res.CreatedAt,
 		&res.UpdatedAt,
 	); err != nil {
-		return nil, errors.Wrap(err, "db.QueryRow.Scan")
+		return nil, errors.Join(err, errors.New("while scanning"))
 	}
 
 	return &res, nil
 }
 
 func (h *RepositoryImpl) GetHotelByID(ctx context.Context, hotelID uuid.UUID) (*HotelDO, error) {
-	span, ctx := opentracing.StartSpanFromContext(ctx, "RepositoryImpl.GetHotelByID")
+	span, ctx := opentracing.StartSpanFromContext(ctx, "hotels_repository.GetHotelByID")
 	defer span.Finish()
 
 	var hotel HotelDO
@@ -136,19 +136,19 @@ func (h *RepositoryImpl) GetHotelByID(ctx context.Context, hotelID uuid.UUID) (*
 		&hotel.CreatedAt,
 		&hotel.UpdatedAt,
 	); err != nil {
-		return nil, errors.Wrap(err, "db.QueryRow.Scan")
+		return nil, errors.Join(err, errors.New("while scanning"))
 	}
 
 	return &hotel, nil
 }
 
 func (h *RepositoryImpl) GetHotels(ctx context.Context, query *pagination.Pagination) (*List, error) {
-	span, ctx := opentracing.StartSpanFromContext(ctx, "RepositoryImpl.GetHotels")
+	span, ctx := opentracing.StartSpanFromContext(ctx, "hotels_repository.GetHotels")
 	defer span.Finish()
 
 	var total int
 	if err := h.db.QueryRow(ctx, getTotalHotelsCountQuery).Scan(&total); err != nil {
-		return nil, errors.Wrap(err, "db.Query")
+		return nil, errors.Join(err, errors.New("while scanning total"))
 	}
 	if total == 0 {
 		return &List{
@@ -163,7 +163,7 @@ func (h *RepositoryImpl) GetHotels(ctx context.Context, query *pagination.Pagina
 
 	rows, err := h.db.Query(ctx, getHotelsQuery, query.GetOffset(), query.GetLimit())
 	if err != nil {
-		return nil, errors.Wrap(err, "db.Query")
+		return nil, errors.Join(err, errors.New("while running query"))
 	}
 	defer rows.Close()
 
@@ -187,13 +187,13 @@ func (h *RepositoryImpl) GetHotels(ctx context.Context, query *pagination.Pagina
 			&hotel.CreatedAt,
 			&hotel.UpdatedAt,
 		); err != nil {
-			return nil, errors.Wrap(err, "rows.Scan")
+			return nil, errors.Join(err, errors.New("while scanning"))
 		}
 		hotels = append(hotels, &hotel)
 	}
 
 	if err := rows.Err(); err != nil {
-		return nil, errors.Wrap(err, "rows.Err")
+		return nil, errors.Join(err, errors.New("while rows"))
 	}
 
 	log.Printf("HOTELS: %-v", hotels)
@@ -209,18 +209,18 @@ func (h *RepositoryImpl) GetHotels(ctx context.Context, query *pagination.Pagina
 }
 
 func (h *RepositoryImpl) UpdateHotelImage(ctx context.Context, hotelID uuid.UUID, imageURL string) error {
-	span, ctx := opentracing.StartSpanFromContext(ctx, "RepositoryImpl.UpdateHotelImage")
+	span, ctx := opentracing.StartSpanFromContext(ctx, "hotels_repository.UpdateHotelImage")
 	defer span.Finish()
 
 	updateHotelImageQuery := `UPDATE hotels SET image = $1 WHERE hotel_id = $2`
 
 	result, err := h.db.Exec(ctx, updateHotelImageQuery, imageURL, hotelID)
 	if err != nil {
-		return errors.Wrap(err, "db.Exec")
+		return errors.Join(err, errors.New("while performing update"))
 	}
 
 	if result.RowsAffected() == 0 {
-		return errors.Wrap(ErrHotelNotFound, "RowsAffected")
+		return errors.Join(ErrHotelNotFound, errors.New("no rows were affected while performing update"))
 	}
 
 	return nil

@@ -32,17 +32,17 @@ func main() {
 	appLogger.Infof("Success parsed config: %#v", cfg.GRPCServer.AppVersion)
 
 	redisClient := redis.NewRedisClient(cfg.Redis)
-	appLogger.Info("Redis connected")
+	appLogger.Info("connected to Redis")
 
 	tracer, closer, err := jaeger.InitJaeger(cfg.Jaeger)
 	if err != nil {
 		appLogger.Fatal("cannot create tracer", err)
 	}
-	appLogger.Info("Jaeger connected")
+	appLogger.Info("connected to Jaeger")
 
 	opentracing.SetGlobalTracer(tracer)
 	defer closer.Close()
-	appLogger.Info("Opentracing connected")
+	appLogger.Info("connected to Opentracing")
 
 	appLogger.Infof("%-v", redisClient.PoolStats())
 

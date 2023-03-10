@@ -28,7 +28,7 @@ func NewServer(logger logger.Logger, service Service, csrfService CSRFService) S
 }
 
 func (s *ServerImpl) CreateSession(ctx context.Context, r *CreateSessionRequest) (*CreateSessionResponse, error) {
-	span, ctx := opentracing.StartSpanFromContext(ctx, "ServerImpl.CreateSession")
+	span, ctx := opentracing.StartSpanFromContext(ctx, "csrf_grpc_server.CreateSession")
 	defer span.Finish()
 
 	userUUID, err := uuid.FromString(r.UserID)
@@ -46,7 +46,7 @@ func (s *ServerImpl) CreateSession(ctx context.Context, r *CreateSessionRequest)
 }
 
 func (s *ServerImpl) GetSessionByID(ctx context.Context, r *GetSessionByIDRequest) (*GetSessionByIDResponse, error) {
-	span, ctx := opentracing.StartSpanFromContext(ctx, "ServerImpl.GetSessionByID")
+	span, ctx := opentracing.StartSpanFromContext(ctx, "csrf_grpc_server.GetSessionByID")
 	defer span.Finish()
 
 	sess, err := s.service.GetSessionByID(ctx, r.SessionID)
@@ -59,7 +59,7 @@ func (s *ServerImpl) GetSessionByID(ctx context.Context, r *GetSessionByIDReques
 }
 
 func (s *ServerImpl) DeleteSession(ctx context.Context, r *DeleteSessionRequest) (*DeleteSessionResponse, error) {
-	span, ctx := opentracing.StartSpanFromContext(ctx, "ServerImpl.DeleteSession")
+	span, ctx := opentracing.StartSpanFromContext(ctx, "csrf_grpc_server.DeleteSession")
 	defer span.Finish()
 
 	if err := s.service.DeleteSession(ctx, r.SessionID); err != nil {
@@ -70,7 +70,7 @@ func (s *ServerImpl) DeleteSession(ctx context.Context, r *DeleteSessionRequest)
 }
 
 func (s *ServerImpl) CreateCsrfToken(ctx context.Context, r *CreateCsrfTokenRequest) (*CreateCsrfTokenResponse, error) {
-	span, ctx := opentracing.StartSpanFromContext(ctx, "ServerImpl.CreateCsrfToken")
+	span, ctx := opentracing.StartSpanFromContext(ctx, "csrf_grpc_server.CreateCsrfToken")
 	defer span.Finish()
 
 	token, err := s.csrfService.GetCSRFToken(ctx, r.GetCsrfTokenInput().GetSessionID())
@@ -82,7 +82,7 @@ func (s *ServerImpl) CreateCsrfToken(ctx context.Context, r *CreateCsrfTokenRequ
 }
 
 func (s *ServerImpl) CheckCsrfToken(ctx context.Context, r *CheckCsrfTokenRequest) (*CheckCsrfTokenResponse, error) {
-	span, ctx := opentracing.StartSpanFromContext(ctx, "ServerImpl.CheckCsrfToken")
+	span, ctx := opentracing.StartSpanFromContext(ctx, "csrf_grpc_server.CheckCsrfToken")
 	defer span.Finish()
 
 	isValid, err := s.csrfService.ValidateCSRFToken(ctx, r.GetCsrfTokenCheck().GetSessionID(), r.GetCsrfTokenCheck().GetToken())

@@ -1,18 +1,26 @@
-FROM golang:1.16
+FROM golang:1.20-alpine as builder
 
-#ENV TZ=Europe/Bucharest
-#RUN ln -snf /usr/share/zoneinfo/$TZ /etc/localtime && echo $TZ > /etc/timezone
+MAINTAINER Badu <badu@badu.ro>
 
-ENV config=docker
+RUN apk update \
+    && apk add --no-cache ca-certificates git make
+
+WORKDIR /comments_workdir
+
+COPY . .
+
+RUN CGO_ENABLED=0 go build -ldflags "-s -w" -v -o ./build/service github.com/badu/microservices-demo/cmd/comments
+
+FROM alpine:3.17
+
+RUN apk update \
+    && apk add --no-cache ca-certificates tzdata && \
+    addgroup -S badu && adduser -S badu -G badu
 
 WORKDIR /app
 
-COPY ../../app/comments /app
+COPY --from=builder /comments_workdir/build/service /app
 
-RUN go mod download
+USER badu
 
-RUN go get github.com/githubnemo/CompileDaemon
-
-EXPOSE 5000
-
-ENTRYPOINT CompileDaemon --build="go build cmd/comments/main.go" --command=./main]
+CMD /app/service

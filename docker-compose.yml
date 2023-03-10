@@ -1,147 +1,9 @@
 version: "3.8"
 
 services:
-  sessions_microservice:
-    container_name: sessions_microservice
-    build:
-      context: app/sessions
-      dockerfile: cmd/sessions/Dockerfile
-    ports:
-      - "5000:5000"
-      - "7070:7070"
-    environment:
-      - PORT=5000
-      - CONFIG=docker
-      - CFG_PATH=cmd/sessions/config/config-docker.yml
-    depends_on:
-      - redis
-      - prometheus
-      - node_exporter
-      - grafana
-    restart: always
-    volumes:
-      - ./sessions:/app
-    networks:
-      - containers_network
-
-  users_microservice:
-    container_name: users_microservice
-    build:
-      context: app/users
-      dockerfile: cmd/users/Dockerfile
-    ports:
-      - "5001:5001"
-      - "7071:7071"
-    environment:
-      - PORT=5001
-      - CONFIG=docker
-      - CFG_PATH=cmd/users/config/config-docker.yml
-    depends_on:
-      - redis
-      - prometheus
-      - node_exporter
-      - grafana
-    restart: always
-    volumes:
-      - ./users:/app
-    networks:
-      - containers_network
-
-  images_microservice:
-    container_name: images_microservice
-    build:
-      context: app/images
-      dockerfile: cmd/images/Dockerfile
-    ports:
-      - "5002:5002"
-      - "7072:7072"
-    environment:
-      - PORT=5002
-      - CONFIG=docker
-      - CFG_PATH=cmd/images/config/config-docker.yml
-    depends_on:
-      - redis
-      - prometheus
-      - node_exporter
-      - grafana
-    restart: always
-    volumes:
-      - ./images:/app
-    networks:
-      - containers_network
-
-  hotels_microservice:
-    container_name: hotels_microservice
-    build:
-      context: app/hotels
-      dockerfile: cmd/hotels/Dockerfile
-    ports:
-      - "5003:5003"
-      - "7073:7073"
-    environment:
-      - PORT=5003
-      - CONFIG=docker
-      - CFG_PATH=cmd/hotels/config/config-docker.yml
-    depends_on:
-      - redis
-      - prometheus
-      - node_exporter
-      - grafana
-    restart: always
-    volumes:
-      - ./hotels:/app
-    networks:
-      - containers_network
-
-  comments_microservice:
-    container_name: comments_microservice
-    build:
-      context: app/comments
-      dockerfile: cmd/comments/Dockerfile
-    ports:
-      - "5004:5004"
-      - "7074:7074"
-    environment:
-      - PORT=5004
-      - CONFIG=docker
-      - CFG_PATH=cmd/comments/config/config-docker.yml
-    depends_on:
-      - redis
-      - prometheus
-      - node_exporter
-      - grafana
-    restart: always
-    volumes:
-      - ./comments:/app
-    networks:
-      - containers_network
-
-  api_gateway:
-    container_name: api_gateway
-    build:
-      context: app/gateway
-      dockerfile: cmd/gateway/Dockerfile
-    ports:
-      - "5005:5005"
-      - "7075:7075"
-    environment:
-      - PORT=5004
-      - CONFIG=docker
-      - CFG_PATH=cmd/gateway/config/config-docker.yml
-    depends_on:
-      - redis
-      - prometheus
-      - node_exporter
-      - grafana
-    restart: always
-    volumes:
-      - ./gateway:/app
-    networks:
-      - containers_network
-
   redis:
     image: redis:6-alpine
-    container_name: redis_booking
+    container_name: redis_users
     ports:
       - "6379:6379"
     restart: always
@@ -159,11 +21,11 @@ services:
     environment:
       - POSTGRES_USER=postgres
       - POSTGRES_PASSWORD=postgres
-      - POSTGRES_DB=users
+      - POSTGRES_DB=users_db
       - POSTGRES_HOST=5433
     command: -p 5433
     volumes:
-      - ./user_pgdata:/var/lib/postgresql/data
+      - ./users_pgdata:/var/lib/postgresql/data
     networks:
       - containers_network
 
@@ -301,6 +163,144 @@ services:
       /usr/bin/mc mb --quiet local/images/;
       /usr/bin/mc policy set public local/images;
       "
+    networks:
+      - containers_network
+
+  users_microservice:
+    container_name: users_microservice
+    build:
+      context: .
+      dockerfile: cmd/users/Dockerfile
+    ports:
+      - "5001:5001"
+      - "7071:7071"
+    environment:
+      - PORT=5001
+      - CONFIG=docker
+      - CFG_PATH=cmd/users/config/config-docker.yml
+    depends_on:
+      - redis
+      - prometheus
+      - node_exporter
+      - grafana
+    restart: always
+    volumes:
+      - ./users:/app
+    networks:
+      - containers_network
+
+  sessions_microservice:
+    container_name: sessions_microservice
+    build:
+      context: app/sessions
+      dockerfile: cmd/sessions/Dockerfile
+    ports:
+      - "5000:5000"
+      - "7070:7070"
+    environment:
+      - PORT=5000
+      - CONFIG=docker
+      - CFG_PATH=cmd/sessions/config/config-docker.yml
+    depends_on:
+      - redis
+      - prometheus
+      - node_exporter
+      - grafana
+    restart: always
+    volumes:
+      - ./sessions:/app
+    networks:
+      - containers_network
+
+  images_microservice:
+    container_name: images_microservice
+    build:
+      context: app/images
+      dockerfile: cmd/images/Dockerfile
+    ports:
+      - "5002:5002"
+      - "7072:7072"
+    environment:
+      - PORT=5002
+      - CONFIG=docker
+      - CFG_PATH=cmd/images/config/config-docker.yml
+    depends_on:
+      - redis
+      - prometheus
+      - node_exporter
+      - grafana
+    restart: always
+    volumes:
+      - ./images:/app
+    networks:
+      - containers_network
+
+  hotels_microservice:
+    container_name: hotels_microservice
+    build:
+      context: app/hotels
+      dockerfile: cmd/hotels/Dockerfile
+    ports:
+      - "5003:5003"
+      - "7073:7073"
+    environment:
+      - PORT=5003
+      - CONFIG=docker
+      - CFG_PATH=cmd/hotels/config/config-docker.yml
+    depends_on:
+      - redis
+      - prometheus
+      - node_exporter
+      - grafana
+    restart: always
+    volumes:
+      - ./hotels:/app
+    networks:
+      - containers_network
+
+  comments_microservice:
+    container_name: comments_microservice
+    build:
+      context: app/comments
+      dockerfile: cmd/comments/Dockerfile
+    ports:
+      - "5004:5004"
+      - "7074:7074"
+    environment:
+      - PORT=5004
+      - CONFIG=docker
+      - CFG_PATH=cmd/comments/config/config-docker.yml
+    depends_on:
+      - redis
+      - prometheus
+      - node_exporter
+      - grafana
+    restart: always
+    volumes:
+      - ./comments:/app
+    networks:
+      - containers_network
+
+  api_gateway:
+    container_name: api_gateway
+    build:
+      context: app/gateway
+      dockerfile: cmd/gateway/Dockerfile
+    ports:
+      - "5005:5005"
+      - "7075:7075"
+    environment:
+      - PORT=5004
+      - CONFIG=docker
+      - CFG_PATH=cmd/gateway/config/config-docker.yml
+    depends_on:
+      - redis
+      - prometheus
+      - node_exporter
+      - grafana
+    restart: always
+    volumes:
+      - ./gateway:/app
     networks:
       - containers_network
 

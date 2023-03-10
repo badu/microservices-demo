@@ -2,10 +2,10 @@ package images
 
 import (
 	"context"
+	"errors"
 
 	"github.com/jackc/pgx/v4/pgxpool"
 	"github.com/opentracing/opentracing-go"
-	"github.com/pkg/errors"
 	uuid "github.com/satori/go.uuid"
 )
 
@@ -24,7 +24,7 @@ func NewRepository(pgxPool *pgxpool.Pool) RepositoryImpl {
 }
 
 func (r *RepositoryImpl) Create(ctx context.Context, msg *ImageDO) (*ImageDO, error) {
-	span, ctx := opentracing.StartSpanFromContext(ctx, "RepositoryImpl.Create")
+	span, ctx := opentracing.StartSpanFromContext(ctx, "images_repository.Create")
 	defer span.Finish()
 
 	var res ImageDO
@@ -34,13 +34,13 @@ func (r *RepositoryImpl) Create(ctx context.Context, msg *ImageDO) (*ImageDO, er
 		msg.ImageURL,
 		msg.IsUploaded,
 	).Scan(&res.ImageID, &res.ImageURL, &res.IsUploaded, &res.CreatedAt); err != nil {
-		return nil, errors.Wrap(err, "RepositoryImpl.Scan")
+		return nil, errors.Join(err, errors.New("while scanning results"))
 	}
 
 	return &res, nil
 }
 func (r *RepositoryImpl) GetImageByID(ctx context.Context, imageID uuid.UUID) (*ImageDO, error) {
-	span, ctx := opentracing.StartSpanFromContext(ctx, "RepositoryImpl.GetImageByID")
+	span, ctx := opentracing.StartSpanFromContext(ctx, "images_repository.GetImageByID")
 	defer span.Finish()
 
 	var img ImageDO
@@ -51,7 +51,7 @@ func (r *RepositoryImpl) GetImageByID(ctx context.Context, imageID uuid.UUID) (*
 		&img.CreatedAt,
 		&img.UpdatedAt,
 	); err != nil {
-		return nil, errors.Wrap(err, "RepositoryImpl.Scan")
+		return nil, errors.Join(err, errors.New("while scanning results"))
 	}
 
 	return &img, nil

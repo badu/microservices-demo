@@ -21,11 +21,11 @@ services:
     environment:
       - POSTGRES_USER=postgres
       - POSTGRES_PASSWORD=postgres
-      - POSTGRES_DB=users
+      - POSTGRES_DB=users_db
       - POSTGRES_HOST=5433
     command: -p 5433
     volumes:
-      - ./pg_data/users:/var/lib/postgresql/data
+      - ./pg_data/users_db:/var/lib/postgresql/data
     networks:
       - containers_network
 
@@ -40,11 +40,11 @@ services:
     environment:
       - POSTGRES_USER=postgres
       - POSTGRES_PASSWORD=postgres
-      - POSTGRES_DB=hotels
+      - POSTGRES_DB=hotels_db
       - POSTGRES_HOST=5435
     command: -p 5435
     volumes:
-      - ./pg_data/hotels:/var/lib/postgresql/data
+      - ./pg_data/hotels_db:/var/lib/postgresql/data
     networks:
       - containers_network
 
@@ -59,11 +59,11 @@ services:
     environment:
       - POSTGRES_USER=postgres
       - POSTGRES_PASSWORD=postgres
-      - POSTGRES_DB=comments
+      - POSTGRES_DB=comments_db
       - POSTGRES_HOST=5436
     command: -p 5436
     volumes:
-      - ./pg_data/comments:/var/lib/postgresql/data
+      - ./pg_data/comments_db:/var/lib/postgresql/data
     networks:
       - containers_network
 
@@ -78,9 +78,9 @@ services:
     environment:
       - POSTGRES_USER=postgres
       - POSTGRES_PASSWORD=postgres
-      - POSTGRES_DB=images
+      - POSTGRES_DB=images_db
     volumes:
-      - ./pg_data/images:/var/lib/postgresql/data
+      - ./pg_data/images_db:/var/lib/postgresql/data
     networks:
       - containers_network
 
@@ -99,7 +99,6 @@ services:
       - '9090:9090'
     networks:
       - containers_network
-
 
   node_exporter:
     container_name: node_exporter_container

@@ -35,7 +35,7 @@ type RequestCtxSession struct{}
 
 func (m *SessionMiddleware) SessionMiddleware(next echo.HandlerFunc) echo.HandlerFunc {
 	return func(c echo.Context) error {
-		span, ctx := opentracing.StartSpanFromContext(c.Request().Context(), "user.SessionMiddleware")
+		span, ctx := opentracing.StartSpanFromContext(c.Request().Context(), "gateway_users_middleware.SessionMiddleware")
 		defer span.Finish()
 
 		cookie, err := c.Cookie(m.cfg.HttpServer.SessionCookieName)

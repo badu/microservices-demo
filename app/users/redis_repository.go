@@ -3,12 +3,12 @@ package users
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"time"
 
 	"github.com/go-redis/redis/v8"
 	"github.com/opentracing/opentracing-go"
-	"github.com/pkg/errors"
 	uuid "github.com/satori/go.uuid"
 )
 
@@ -23,43 +23,43 @@ func NewRedisRepository(redisConn *redis.Client, prefix string, expiration time.
 }
 
 func (u *RedisRepositoryImpl) SaveUser(ctx context.Context, user *UserResponse) error {
-	span, ctx := opentracing.StartSpanFromContext(ctx, "userRedisRepository.SaveUser")
+	span, ctx := opentracing.StartSpanFromContext(ctx, "users_Redis_repository.SaveUser")
 	defer span.Finish()
 
 	userBytes, err := json.Marshal(user)
 	if err != nil {
-		return errors.Wrap(err, "userRedisRepository.SaveUser.json.Marshal")
+		return errors.Join(err, errors.New("userRedisRepository.SaveUser.json.Marshal"))
 	}
 
 	if err := u.client.SetEX(ctx, u.createKey(user.UserID), string(userBytes), u.expiration).Err(); err != nil {
-		return errors.Wrap(err, "userRedisRepository.SaveUser.client.SetEX")
+		return errors.Join(err, errors.New("userRedisRepository.SaveUser.client.SetEX"))
 	}
 
 	return nil
 }
 
 func (u *RedisRepositoryImpl) GetUserByID(ctx context.Context, userID uuid.UUID) (*UserResponse, error) {
-	span, ctx := opentracing.StartSpanFromContext(ctx, "userRedisRepository.GetUserByID")
+	span, ctx := opentracing.StartSpanFromContext(ctx, "users_Redis_repository.GetUserByID")
 	defer span.Finish()
 
 	result, err := u.client.Get(ctx, u.createKey(userID)).Bytes()
 	if err != nil {
-		return nil, errors.Wrap(err, "userRedisRepository.GetUserByID.client.Get")
+		return nil, errors.Join(err, errors.New("userRedisRepository.GetUserByID.client.Get"))
 	}
 
 	var res UserResponse
 	if err := json.Unmarshal(result, &res); err != nil {
-		return nil, errors.Wrap(err, "userRedisRepository.GetUserByID.json.Unmarshal")
+		return nil, errors.Join(err, errors.New("userRedisRepository.GetUserByID.json.Unmarshal"))
 	}
 	return &res, nil
 }
 
 func (u *RedisRepositoryImpl) DeleteUser(ctx context.Context, userID uuid.UUID) error {
-	span, ctx := opentracing.StartSpanFromContext(ctx, "userRedisRepository.DeleteUser")
+	span, ctx := opentracing.StartSpanFromContext(ctx, "users_Redis_repository.DeleteUser")
 	defer span.Finish()
 
 	if err := u.client.Del(ctx, u.createKey(userID)).Err(); err != nil {
-		return errors.Wrap(err, "userRedisRepository.GetUserByID.client.Del")
+		return errors.Join(err, errors.New("userRedisRepository.GetUserByID.client.Del"))
 	}
 
 	return nil

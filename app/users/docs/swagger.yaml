@@ -4,27 +4,46 @@ definitions:
       email:
         type: string
       password:
+        maxLength: 250
+        minLength: 6
         type: string
     required:
     - email
     - password
     type: object
+  users.Role:
+    enum:
+    - guest
+    - member
+    - admin
+    type: string
+    x-enum-varnames:
+    - RoleGuest
+    - RoleMember
+    - RoleAdmin
   users.UserDO:
     properties:
       avatar:
+        maxLength: 250
         type: string
       created_at:
         type: string
       email:
         type: string
       first_name:
+        maxLength: 25
+        minLength: 3
         type: string
       last_name:
+        maxLength: 25
+        minLength: 3
         type: string
       password:
+        maxLength: 250
+        minLength: 6
         type: string
       role:
-        type: string
+        $ref: '#/definitions/users.Role'
       updated_at:
         type: string
       user_id:
@@ -38,17 +57,22 @@ definitions:
   users.UserResponse:
     properties:
       avatar:
+        maxLength: 250
         type: string
       created_at:
         type: string
       email:
         type: string
       first_name:
+        maxLength: 25
+        minLength: 3
         type: string
       last_name:
+        maxLength: 25
+        minLength: 3
         type: string
       role:
-        type: string
+        $ref: '#/definitions/users.Role'
       updated_at:
         type: string
       user_id:
@@ -61,7 +85,7 @@ definitions:
 info:
   contact: {}
 paths:
-  /user/{id}:
+  /api/v1/users/{id}:
     get:
       consumes:
       - application/json
@@ -81,7 +105,21 @@ paths:
       summary: Get user by id
       tags:
       - UserDO
-  /user/{id}/avatar:
+    put:
+      consumes:
+      - application/json
+      description: update user profile
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/users.UserResponse'
+      summary: Update user
+      tags:
+      - UserDO
+  /api/v1/users/{id}/avatar:
     put:
       consumes:
       - multipart/form-data
@@ -101,7 +139,7 @@ paths:
       summary: Update user avatar
       tags:
       - UserDO
-  /user/csrf:
+  /api/v1/users/csrf:
     get:
       consumes:
       - application/json
@@ -114,7 +152,7 @@ paths:
       summary: Get csrf token
       tags:
       - UserDO
-  /user/login:
+  /api/v1/users/login:
     post:
       consumes:
       - application/json
@@ -136,7 +174,7 @@ paths:
       summary: Login user
       tags:
       - UserDO
-  /user/logout:
+  /api/v1/users/logout:
     post:
       consumes:
       - application/json
@@ -149,7 +187,7 @@ paths:
       summary: Logout user
       tags:
       - UserDO
-  /user/me:
+  /api/v1/users/me:
     get:
       consumes:
       - application/json
@@ -164,7 +202,7 @@ paths:
       summary: Get current user data
       tags:
       - UserDO
-  /user/register:
+  /api/v1/users/register:
     post:
       consumes:
       - application/json

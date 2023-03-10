@@ -28,12 +28,12 @@ const (
 )
 
 type HTTPTransport struct {
-	cfg      *config.Config
-	group    *echo.Group
-	service  Service
-	logger   logger.Logger
-	validate *validator.Validate
-	mw       *MiddlewareManager
+	cfg            *config.Config
+	group          *echo.Group
+	service        Service
+	logger         logger.Logger
+	validate       *validator.Validate
+	sessionManager *SessionManager
 }
 
 func NewHTTPServer(
@@ -42,9 +42,9 @@ func NewHTTPServer(
 	logger logger.Logger,
 	validate *validator.Validate,
 	cfg *config.Config,
-	mw *MiddlewareManager,
+	mw *SessionManager,
 ) HTTPTransport {
-	return HTTPTransport{group: group, service: service, logger: logger, validate: validate, cfg: cfg, mw: mw}
+	return HTTPTransport{group: group, service: service, logger: logger, validate: validate, cfg: cfg, sessionManager: mw}
 }
 
 // Register godoc
@@ -55,11 +55,10 @@ func NewHTTPServer(
 // @Produce json
 // @Param data body UserDO true "user data"
 // @Success 201 {object} UserResponse
-// @Router /user/register [post]
-// @BasePath /api/v1
+// @Router /api/v1/users/register [post]
 func (h *HTTPTransport) Register() echo.HandlerFunc {
 	return func(c echo.Context) error {
-		span, ctx := opentracing.StartSpanFromContext(c.Request().Context(), "auth.Register")
+		span, ctx := opentracing.StartSpanFromContext(c.Request().Context(), "users_http_server.Register")
 		defer span.Finish()
 
 		var u UserDO
@@ -105,11 +104,10 @@ func (h *HTTPTransport) Register() echo.HandlerFunc {
 // @Produce json
 // @Param data body Login true "email and password"
 // @Success 200 {object} UserResponse
-// @Router /user/login [post]
-// @BasePath /api/v1
+// @Router /api/v1/users/login [post]
 func (h *HTTPTransport) Login() echo.HandlerFunc {
 	return func(c echo.Context) error {
-		span, ctx := opentracing.StartSpanFromContext(c.Request().Context(), "user.Login")
+		span, ctx := opentracing.StartSpanFromContext(c.Request().Context(), "users_http_server.Login")
 		defer span.Finish()
 
 		var login Login
@@ -154,11 +152,10 @@ func (h *HTTPTransport) Login() echo.HandlerFunc {
 // @Accept json
 // @Produce json
 // @Success 204 ""
-// @Router /user/logout [post]
-// @BasePath /api/v1
+// @Router /api/v1/users/logout [post]
 func (h *HTTPTransport) Logout() echo.HandlerFunc {
 	return func(c echo.Context) error {
-		span, ctx := opentracing.StartSpanFromContext(c.Request().Context(), "user.Logout")
+		span, ctx := opentracing.StartSpanFromContext(c.Request().Context(), "users_http_server.Logout")
 		defer span.Finish()
 
 		cookie, err := c.Cookie(h.cfg.HttpServer.SessionCookieName)
@@ -194,11 +191,10 @@ func (h *HTTPTransport) Logout() echo.HandlerFunc {
 // @Accept json
 // @Produce json
 // @Success 200 {object} UserResponse
-// @Router /user/me [get]
-// @BasePath /api/v1
+// @Router /api/v1/users/me [get]
 func (h *HTTPTransport) GetMe() echo.HandlerFunc {
 	return func(c echo.Context) error {
-		span, ctx := opentracing.StartSpanFromContext(c.Request().Context(), "user.GetMe")
+		span, ctx := opentracing.StartSpanFromContext(c.Request().Context(), "users_http_server.GetMe")
 		defer span.Finish()
 
 		userResponse, ok := ctx.Value(RequestCtxUser{}).(*UserResponse)
@@ -218,11 +214,10 @@ func (h *HTTPTransport) GetMe() echo.HandlerFunc {
 // @Accept json
 // @Produce json
 // @Success 204 ""
-// @Router /user/csrf [get]
-// @BasePath /api/v1
+// @Router /api/v1/users/csrf [get]
 func (h *HTTPTransport) GetCSRFToken() echo.HandlerFunc {
 	return func(c echo.Context) error {
-		span, ctx := opentracing.StartSpanFromContext(c.Request().Context(), "user.GetCSRFToken")
+		span, ctx := opentracing.StartSpanFromContext(c.Request().Context(), "users_http_server.GetCSRFToken")
 		defer span.Finish()
 
 		userSession, ok := ctx.Value(RequestCtxSession{}).(*sessions.SessionDO)
@@ -250,11 +245,10 @@ func (h *HTTPTransport) GetCSRFToken() echo.HandlerFunc {
 // @Accept json
 // @Produce json
 // @Success 200 {object} UserResponse
-// @Router /user/{id} [get]
-// @BasePath /api/v1
+// @Router /api/v1/users/{id} [put]
 func (h *HTTPTransport) Update() echo.HandlerFunc {
 	return func(c echo.Context) error {
-		span, ctx := opentracing.StartSpanFromContext(c.Request().Context(), "user.Update")
+		span, ctx := opentracing.StartSpanFromContext(c.Request().Context(), "users_http_server.Update")
 		defer span.Finish()
 
 		userID := c.Param("id")
@@ -303,11 +297,10 @@ func (h *HTTPTransport) Delete() echo.HandlerFunc {
 // @Produce json
 // @Param id path int false "user uuid"
 // @Success 200 {object} UserResponse
-// @Router /user/{id} [get]
-// @BasePath /api/v1
+// @Router /api/v1/users/{id} [get]
 func (h *HTTPTransport) GetUserByID() echo.HandlerFunc {
 	return func(c echo.Context) error {
-		span, ctx := opentracing.StartSpanFromContext(c.Request().Context(), "user.GetUserByID")
+		span, ctx := opentracing.StartSpanFromContext(c.Request().Context(), "users_http_server.GetUserByID")
 		defer span.Finish()
 
 		userID := c.Param("id")
@@ -340,14 +333,13 @@ func (h *HTTPTransport) GetUserByID() echo.HandlerFunc {
 // @Produce json
 // @Param id path int false "user uuid"
 // @Success 200 {object} UserResponse
-// @Router /user/{id}/avatar [put]
-// @BasePath /api/v1
+// @Router /api/v1/users/{id}/avatar [put]
 func (h *HTTPTransport) UpdateAvatar() echo.HandlerFunc {
 	bufferPool := &sync.Pool{New: func() interface{} {
 		return &bytes.Buffer{}
 	}}
 	return func(c echo.Context) error {
-		span, ctx := opentracing.StartSpanFromContext(c.Request().Context(), "user.UpdateAvatar")
+		span, ctx := opentracing.StartSpanFromContext(c.Request().Context(), "users_http_server.UpdateAvatar")
 		defer span.Finish()
 
 		userResponse, ok := ctx.Value(RequestCtxUser{}).(*UserResponse)
@@ -437,9 +429,9 @@ func (h *HTTPTransport) checkAvatar(file multipart.File) (string, error) {
 func (h *HTTPTransport) MapUserRoutes() {
 	h.group.POST("/register", h.Register())
 	h.group.POST("/login", h.Login())
-	h.group.PUT("/:id/avatar", h.UpdateAvatar(), h.mw.SessionMiddleware)
+	h.group.PUT("/:id/avatar", h.UpdateAvatar(), h.sessionManager.SessionMiddleware)
 	h.group.GET("/:id", h.GetUserByID())
-	h.group.PUT("/:id", h.Update(), h.mw.SessionMiddleware)
-	h.group.GET("/me", h.GetMe(), h.mw.SessionMiddleware)
-	h.group.GET("/csrf", h.GetCSRFToken(), h.mw.SessionMiddleware)
+	h.group.PUT("/:id", h.Update(), h.sessionManager.SessionMiddleware)
+	h.group.GET("/me", h.GetMe(), h.sessionManager.SessionMiddleware)
+	h.group.GET("/csrf", h.GetCSRFToken(), h.sessionManager.SessionMiddleware)
 }

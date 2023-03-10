@@ -2,14 +2,11 @@ package users
 
 import (
 	"context"
-	"fmt"
+	"errors"
 	"log"
-	"strconv"
-	"strings"
 
 	"github.com/jackc/pgx/v4/pgxpool"
 	"github.com/opentracing/opentracing-go"
-	"github.com/pkg/errors"
 	uuid "github.com/satori/go.uuid"
 
 	"github.com/badu/microservices-demo/app/images"
@@ -47,7 +44,7 @@ func NewRepository(db *pgxpool.Pool) RepositoryImpl {
 
 // Create new user
 func (u *RepositoryImpl) Create(ctx context.Context, user *UserDO) (*UserResponse, error) {
-	span, ctx := opentracing.StartSpanFromContext(ctx, "RepositoryImpl.Create")
+	span, ctx := opentracing.StartSpanFromContext(ctx, "users_repository.Create")
 	defer span.Finish()
 
 	var created UserResponse
@@ -63,7 +60,7 @@ func (u *RepositoryImpl) Create(ctx context.Context, user *UserDO) (*UserRespons
 	).Scan(&created.UserID, &created.FirstName, &created.LastName, &created.Email,
 		&created.Avatar, &created.Role, &created.UpdatedAt, &created.CreatedAt,
 	); err != nil {
-		return nil, errors.Wrap(err, "Scan")
+		return nil, errors.Join(err, errors.New("while scanning result"))
 	}
 
 	return &created, nil
@@ -71,7 +68,7 @@ func (u *RepositoryImpl) Create(ctx context.Context, user *UserDO) (*UserRespons
 
 // Get user by id
 func (u *RepositoryImpl) GetByID(ctx context.Context, userID uuid.UUID) (*UserResponse, error) {
-	span, ctx := opentracing.StartSpanFromContext(ctx, "RepositoryImpl.GetByID")
+	span, ctx := opentracing.StartSpanFromContext(ctx, "users_repository.GetByID")
 	defer span.Finish()
 
 	var res UserResponse
@@ -85,14 +82,14 @@ func (u *RepositoryImpl) GetByID(ctx context.Context, userID uuid.UUID) (*UserRe
 		&res.UpdatedAt,
 		&res.CreatedAt,
 	); err != nil {
-		return nil, errors.Wrap(err, "Scan")
+		return nil, errors.Join(err, errors.New("while scanning result"))
 	}
 
 	return &res, nil
 }
 
 func (u *RepositoryImpl) GetByEmail(ctx context.Context, email string) (*UserDO, error) {
-	span, ctx := opentracing.StartSpanFromContext(ctx, "RepositoryImpl.GetByEmail")
+	span, ctx := opentracing.StartSpanFromContext(ctx, "users_repository.GetByEmail")
 	defer span.Finish()
 
 	var res UserDO
@@ -107,14 +104,14 @@ func (u *RepositoryImpl) GetByEmail(ctx context.Context, email string) (*UserDO,
 		&res.UpdatedAt,
 		&res.CreatedAt,
 	); err != nil {
-		return nil, errors.Wrap(err, "Scan")
+		return nil, errors.Join(err, errors.New("while scanning result"))
 	}
 
 	return &res, nil
 }
 
 func (u *RepositoryImpl) Update(ctx context.Context, user *UserUpdate) (*UserResponse, error) {
-	span, ctx := opentracing.StartSpanFromContext(ctx, "RepositoryImpl.Update")
+	span, ctx := opentracing.StartSpanFromContext(ctx, "users_repository.Update")
 	defer span.Finish()
 
 	var res UserResponse
@@ -129,14 +126,14 @@ func (u *RepositoryImpl) Update(ctx context.Context, user *UserUpdate) (*UserRes
 			&res.UpdatedAt,
 			&res.CreatedAt,
 		); err != nil {
-		return nil, errors.Wrap(err, "Scan")
+		return nil, errors.Join(err, errors.New("while scanning result"))
 	}
 
 	return &res, nil
 }
 
 func (u *RepositoryImpl) UpdateAvatar(ctx context.Context, msg images.UploadedImageMsg) (*UserResponse, error) {
-	span, ctx := opentracing.StartSpanFromContext(ctx, "RepositoryImpl.UpdateUploadedAvatar")
+	span, ctx := opentracing.StartSpanFromContext(ctx, "users_repository.UpdateUploadedAvatar")
 	defer span.Finish()
 
 	log.Printf("REPO  IMAGE: %v", msg)
@@ -151,27 +148,19 @@ func (u *RepositoryImpl) UpdateAvatar(ctx context.Context, msg images.UploadedIm
 		&res.UpdatedAt,
 		&res.CreatedAt,
 	); err != nil {
-		return nil, errors.Wrap(err, "Scan")
+		return nil, errors.Join(err, errors.New("while scanning result"))
 	}
 
 	return &res, nil
 }
 
 func (u *RepositoryImpl) GetUsersByIDs(ctx context.Context, userIDs []string) ([]*UserResponse, error) {
-	span, ctx := opentracing.StartSpanFromContext(ctx, "RepositoryImpl.GetUsersByIDs")
+	span, ctx := opentracing.StartSpanFromContext(ctx, "users_repository.GetUsersByIDs")
 	defer span.Finish()
 
-	placeholders := CreateSQLPlaceholders(len(userIDs))
-	query := fmt.Sprintf("SELECT user_id, first_name, last_name, email, avatar, role, updated_at, created_at FROM users WHERE user_id IN (%v)", placeholders)
-
-	args := make([]interface{}, len(userIDs))
-	for i, id := range userIDs {
-		args[i] = id
-	}
-
-	rows, err := u.db.Query(ctx, query, args...)
+	rows, err := u.db.Query(ctx, "SELECT user_id, first_name, last_name, email, avatar, role, updated_at, created_at FROM users WHERE user_id IN (SELECT UNNEST($1::uuid))", userIDs)
 	if err != nil {
-		return nil, errors.Wrap(err, "db.Query")
+		return nil, errors.Join(err, errors.New("while querying"))
 	}
 	defer rows.Close()
 
@@ -188,22 +177,10 @@ func (u *RepositoryImpl) GetUsersByIDs(ctx context.Context, userIDs []string) ([
 			&res.UpdatedAt,
 			&res.CreatedAt,
 		); err != nil {
-			return nil, errors.Wrap(err, "db.Query")
+			return nil, errors.Join(err, errors.New("while scanning result"))
 		}
 		users = append(users, &res)
 	}
 
 	return users, nil
-}
-
-// CreateSQLPlaceholders Generate postgres $ placeholders
-func CreateSQLPlaceholders(length int) string {
-	var builder strings.Builder
-	for i := 0; i < length; i++ {
-		if i < length-1 {
-			builder.WriteString(`,`)
-		}
-		builder.WriteString(`$` + strconv.Itoa(i+1))
-	}
-	return builder.String()
 }

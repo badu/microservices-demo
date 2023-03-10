@@ -2,6 +2,7 @@ package gateway
 
 import (
 	"context"
+	"errors"
 	"net/http"
 	"os"
 	"os/signal"
@@ -14,7 +15,6 @@ import (
 	"github.com/labstack/echo/v4"
 	"github.com/labstack/echo/v4/middleware"
 	"github.com/opentracing/opentracing-go"
-	"github.com/pkg/errors"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	echoSwagger "github.com/swaggo/echo-swagger"
 	"google.golang.org/grpc"
@@ -34,12 +34,9 @@ import (
 )
 
 const (
-	certFile          = "ssl/server.crt"
-	keyFile           = "ssl/server.pem"
-	maxHeaderBytes    = 1 << 20
-	userCachePrefix   = "users:"
-	userCacheDuration = time.Minute * 15
-
+	certFile        = "ssl/server.crt"
+	keyFile         = "ssl/server.pem"
+	maxHeaderBytes  = 1 << 20
 	gzipLevel       = 5
 	stackSize       = 1 << 10 // 1 KB
 	csrfTokenHeader = "X-CSRF-Token"
@@ -54,16 +51,18 @@ type Application struct {
 	tracer    opentracing.Tracer
 }
 
-func NewApplication(logger logger.Logger, cfg *config.Config, client *redis.Client, tracer opentracing.Tracer) *Application {
-	return &Application{echo: echo.New(), logger: logger, cfg: cfg, redisConn: client, tracer: tracer}
+func NewApplication(logger logger.Logger, cfg *config.Config, client *redis.Client, tracer opentracing.Tracer) Application {
+	return Application{echo: echo.New(), logger: logger, cfg: cfg, redisConn: client, tracer: tracer}
 }
 
 func (a *Application) MapRoutes() {
 	a.echo.GET("/swagger/*", echoSwagger.WrapHandler)
+
 	cwd, err := os.Getwd()
 	if err != nil {
 		panic("cannot read working dir")
 	}
+
 	cwd = strings.ReplaceAll(cwd, "/cmd", "/app")
 	dat, err := os.ReadFile(cwd + "/docs/swagger.json")
 	if err != nil {
@@ -72,6 +71,7 @@ func (a *Application) MapRoutes() {
 	a.echo.GET("/swagger/doc.json", func(c echo.Context) error {
 		return c.String(http.StatusOK, string(dat))
 	})
+
 	a.echo.Use(middleware.Logger())
 	a.echo.Pre(middleware.HTTPSRedirect())
 	a.echo.Use(
@@ -120,9 +120,9 @@ func HotelsGRPCClientFactory(
 	cfg *config.Config,
 	tracer opentracing.Tracer,
 ) func(ctx context.Context) (*grpc.ClientConn, hotels.HotelsServiceClient, error) {
-	manager := grpc_client.NewClientMiddleware(logger, cfg, tracer)
+	commonMW := grpc_client.NewClientMiddleware(logger, cfg, tracer)
 	return func(ctx context.Context) (*grpc.ClientConn, hotels.HotelsServiceClient, error) {
-		conn, err := grpc_client.NewGRPCClientServiceConn(ctx, manager, cfg.GRPC.HotelsServicePort)
+		conn, err := grpc_client.NewGRPCClientServiceConn(ctx, commonMW, cfg.GRPC.HotelsServicePort)
 		if err != nil {
 			return nil, nil, err
 		}
@@ -135,9 +135,9 @@ func CommentsGRPCClientFactory(
 	cfg *config.Config,
 	tracer opentracing.Tracer,
 ) func(ctx context.Context) (*grpc.ClientConn, comments.CommentsServiceClient, error) {
-	manager := grpc_client.NewClientMiddleware(logger, cfg, tracer)
+	commonMW := grpc_client.NewClientMiddleware(logger, cfg, tracer)
 	return func(ctx context.Context) (*grpc.ClientConn, comments.CommentsServiceClient, error) {
-		conn, err := grpc_client.NewGRPCClientServiceConn(ctx, manager, cfg.GRPC.CommentsServicePort)
+		conn, err := grpc_client.NewGRPCClientServiceConn(ctx, commonMW, cfg.GRPC.CommentsServicePort)
 		if err != nil {
 			return nil, nil, err
 		}
@@ -150,9 +150,9 @@ func UsersGRPCClientFactory(
 	cfg *config.Config,
 	tracer opentracing.Tracer,
 ) func(ctx context.Context) (*grpc.ClientConn, users.UserServiceClient, error) {
-	manager := grpc_client.NewClientMiddleware(logger, cfg, tracer)
+	commonMW := grpc_client.NewClientMiddleware(logger, cfg, tracer)
 	return func(ctx context.Context) (*grpc.ClientConn, users.UserServiceClient, error) {
-		conn, err := grpc_client.NewGRPCClientServiceConn(ctx, manager, cfg.GRPC.UserServicePort)
+		conn, err := grpc_client.NewGRPCClientServiceConn(ctx, commonMW, cfg.GRPC.UserServicePort)
 		if err != nil {
 			return nil, nil, err
 		}
@@ -165,9 +165,9 @@ func SessionsGRPCClientFactory(
 	cfg *config.Config,
 	tracer opentracing.Tracer,
 ) func(ctx context.Context) (*grpc.ClientConn, sessions.AuthorizationServiceClient, error) {
-	manager := grpc_client.NewClientMiddleware(logger, cfg, tracer)
+	commonMW := grpc_client.NewClientMiddleware(logger, cfg, tracer)
 	return func(ctx context.Context) (*grpc.ClientConn, sessions.AuthorizationServiceClient, error) {
-		conn, err := grpc_client.NewGRPCClientServiceConn(ctx, manager, cfg.GRPC.SessionServicePort)
+		conn, err := grpc_client.NewGRPCClientServiceConn(ctx, commonMW, cfg.GRPC.SessionServicePort)
 		if err != nil {
 			return nil, nil, err
 		}
@@ -189,11 +189,11 @@ func (a *Application) Run() error {
 	userSessionMiddleware := gatewayUsers.NewSessionMiddleware(a.logger, a.cfg, &usersService)
 
 	validate := validator.New()
-	// TODO : use error group
+
 	go func() {
 		router := echo.New()
 		router.GET("/metrics", echo.WrapHandler(promhttp.Handler()))
-		a.logger.Infof("Metrics server is running on port: %s", a.cfg.Metrics.Port)
+		a.logger.Infof("metrics server is running on port: %s", a.cfg.Metrics.Port)
 		if err := router.Start(a.cfg.Metrics.Port); err != nil {
 			a.logger.Error(err)
 			cancel()
@@ -201,7 +201,7 @@ func (a *Application) Run() error {
 	}()
 
 	go func() {
-		a.logger.Infof("Server is listening on PORT: %s", a.cfg.HttpServer.Port)
+		a.logger.Infof("gateway HTTP server is listening on PORT: %s", a.cfg.HttpServer.Port)
 		a.echo.Server.ReadTimeout = time.Second * a.cfg.HttpServer.ReadTimeout
 		a.echo.Server.WriteTimeout = time.Second * a.cfg.HttpServer.WriteTimeout
 		a.echo.Server.MaxHeaderBytes = maxHeaderBytes
@@ -211,7 +211,7 @@ func (a *Application) Run() error {
 	}()
 
 	go func() {
-		a.logger.Infof("Starting Debug Server on PORT: %s", a.cfg.HttpServer.PprofPort)
+		a.logger.Infof("gateway debug server listening on PORT: %s", a.cfg.HttpServer.PprofPort)
 		if err := http.ListenAndServe(a.cfg.HttpServer.PprofPort, http.DefaultServeMux); err != nil {
 			a.logger.Errorf("Error PPROF ListenAndServe: %s", err)
 		}
@@ -240,9 +240,9 @@ func (a *Application) Run() error {
 	}
 
 	if err := a.echo.Server.Shutdown(ctx); err != nil {
-		return errors.Wrap(err, "Server.Shutdown")
+		return errors.Join(err, errors.New("gateway server shutdown"))
 	}
 
-	a.logger.Info("Server Exited Properly")
+	a.logger.Info("gateway server exited properly")
 	return nil
 }

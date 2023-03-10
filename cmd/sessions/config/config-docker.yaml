@@ -13,6 +13,7 @@ GRPCServer:
   MaxConnectionAge: 5
   SessionPrefix: "session"
   CSRFPrefix: "csrf"
+  CsrfSalt: "KbWaoi5xtDC3GEfBa9ovQdzOzXsuVU9I"
 
 logger:
   Development: true
@@ -20,13 +21,14 @@ logger:
   DisableStacktrace: false
   Encoding: json
   Level: info
+  PrintConfig: false
 
 postgres:
   PostgresqlHost: localhost
   PostgresqlPort: 5433
   PostgresqlUser: postgres
   PostgresqlPassword: postgres
-  PostgresqlDbname: user_db
+  PostgresqlDbname: users_db
   PostgresqlSslmode: "disable"
   PgDriver: pgx
 

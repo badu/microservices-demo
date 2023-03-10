@@ -36,15 +36,15 @@ func main() {
 	if err != nil {
 		appLogger.Fatal("cannot create tracer", err)
 	}
-	appLogger.Info("Jaeger connected")
+	appLogger.Info("connected to Jaeger")
 
 	opentracing.SetGlobalTracer(tracer)
 	defer closer.Close()
 
-	appLogger.Info("Opentracing connected")
+	appLogger.Info("connected to Opentracing")
 
 	redisClient := redis.NewRedisClient(cfg.Redis)
-	appLogger.Infof("Redis connected: %-v", redisClient.PoolStats())
+	appLogger.Infof("connected to Redis : %#v", redisClient.PoolStats())
 
 	app := gateway.NewApplication(&appLogger, cfg, redisClient, tracer)
 	appLogger.Fatal(app.Run())

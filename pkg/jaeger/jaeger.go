@@ -5,8 +5,8 @@ import (
 
 	"github.com/opentracing/opentracing-go"
 	"github.com/uber/jaeger-client-go"
-	jaegercfg "github.com/uber/jaeger-client-go/config"
-	jaegerlog "github.com/uber/jaeger-client-go/log"
+	jaegerCfg "github.com/uber/jaeger-client-go/config"
+	jaegerLog "github.com/uber/jaeger-client-go/log"
 	"github.com/uber/jaeger-lib/metrics"
 )
 
@@ -19,20 +19,20 @@ type Config struct {
 
 // Init Jaeger
 func InitJaeger(cfg Config) (opentracing.Tracer, io.Closer, error) {
-	jaegerCfgInstance := jaegercfg.Configuration{
+	jaegerCfgInstance := jaegerCfg.Configuration{
 		ServiceName: cfg.ServiceName,
-		Sampler: &jaegercfg.SamplerConfig{
+		Sampler: &jaegerCfg.SamplerConfig{
 			Type:  jaeger.SamplerTypeConst,
 			Param: 1,
 		},
-		Reporter: &jaegercfg.ReporterConfig{
+		Reporter: &jaegerCfg.ReporterConfig{
 			LogSpans:           cfg.LogSpans,
 			LocalAgentHostPort: cfg.Host,
 		},
 	}
 
 	return jaegerCfgInstance.NewTracer(
-		jaegercfg.Logger(jaegerlog.StdLogger),
-		jaegercfg.Metrics(metrics.NullFactory),
+		jaegerCfg.Logger(jaegerLog.StdLogger),
+		jaegerCfg.Metrics(metrics.NullFactory),
 	)
 }

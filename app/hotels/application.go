@@ -2,6 +2,8 @@ package hotels
 
 import (
 	"context"
+	"errors"
+	"fmt"
 	"net"
 	"os"
 	"os/signal"
@@ -13,7 +15,6 @@ import (
 	"github.com/jackc/pgx/v4/pgxpool"
 	"github.com/labstack/echo/v4"
 	"github.com/opentracing/opentracing-go"
-	"github.com/pkg/errors"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/keepalive"
@@ -47,25 +48,25 @@ func (s *Application) Run() error {
 
 	publisher, err := NewHotelsPublisher(s.cfg, s.logger)
 	if err != nil {
-		return errors.Wrap(err, "NewHotelsPublisher")
+		return errors.Join(err, errors.New("application trying to create the hotels publisher"))
 	}
 
 	validate := validator.New()
 	repository := NewRepository(s.pgxPool)
 	service := NewService(&repository, s.logger, &publisher)
 
-	l, err := net.Listen("tcp", s.cfg.GRPCServer.Port)
+	listener, err := net.Listen("tcp", s.cfg.GRPCServer.Port)
 	if err != nil {
-		return errors.Wrap(err, "net.Listen")
+		return errors.Join(err, fmt.Errorf("application trying to listen grpc port %s", s.cfg.GRPCServer.Port))
 	}
-	defer l.Close()
+	defer listener.Close()
 
 	router := echo.New()
 	router.GET("/metrics", echo.WrapHandler(promhttp.Handler()))
 
 	consumer := NewHotelsConsumer(s.logger, s.cfg, &service)
 	if err := consumer.Initialize(); err != nil {
-		return errors.Wrap(err, "ConsumerImpl.Initialize")
+		return errors.Join(err, errors.New("application trying to create the hotels consumer"))
 	}
 	consumer.RunConsumers(ctx, cancel)
 	defer consumer.CloseChannels()
@@ -101,7 +102,7 @@ func (s *Application) Run() error {
 
 	go func() {
 		s.logger.Infof("GRPC Application is listening on port: %v", s.cfg.GRPCServer.Port)
-		s.logger.Fatal(grpcServer.Serve(l))
+		s.logger.Fatal(grpcServer.Serve(listener))
 	}()
 
 	if s.cfg.ProductionMode() {
@@ -121,7 +122,7 @@ func (s *Application) Run() error {
 	s.logger.Info("Application Exited Properly")
 
 	if err := s.echo.Server.Shutdown(ctx); err != nil {
-		return errors.Wrap(err, "echo.Application.Shutdown")
+		return errors.Join(err, errors.New("on server shutdown"))
 	}
 
 	grpcServer.GracefulStop()

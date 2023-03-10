@@ -1,8 +1,10 @@
 .PHONY:
 
+
 # ==============================================================================
-# Generate swagger documentation
+# Make local SSL Certificate
 # ==============================================================================
-swagger_users_api:
-	echo "Starting swagger generating"
-	swag init -g **/**/*.go
+
+make_cert:
+	echo "Generating SSL certificates"
+	sh ./gateway/ssl/instructions.sh

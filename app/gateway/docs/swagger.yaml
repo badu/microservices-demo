@@ -8,12 +8,16 @@ definitions:
       hotel_id:
         type: string
       message:
+        maxLength: 500
+        minLength: 5
         type: string
       photos:
         items:
           type: string
         type: array
       rating:
+        maximum: 10
+        minimum: 0
         type: number
       updated_at:
         type: string
@@ -64,14 +68,20 @@ definitions:
   hotels.Hotel:
     properties:
       city:
+        maxLength: 25
+        minLength: 3
         type: string
       comments_count:
         type: integer
       country:
+        maxLength: 25
+        minLength: 3
         type: string
       created_at:
         type: string
       description:
+        maxLength: 250
+        minLength: 10
         type: string
       email:
         type: string
@@ -82,16 +92,22 @@ definitions:
       latitude:
         type: number
       location:
+        maxLength: 250
+        minLength: 10
         type: string
       longitude:
         type: number
       name:
+        maxLength: 25
+        minLength: 3
         type: string
       photos:
         items:
           type: string
         type: array
       rating:
+        maximum: 10
+        minimum: 0
         type: number
       updated_at:
         type: string
@@ -139,7 +155,7 @@ definitions:
 info:
   contact: {}
 paths:
-  /comments:
+  /api/v1/comments:
     post:
       consumes:
       - application/json
@@ -154,7 +170,7 @@ paths:
       summary: Create new comment
       tags:
       - Comments
-  /comments/{comment_id}:
+  /api/v1/comments/{comment_id}:
     get:
       consumes:
       - application/json
@@ -193,7 +209,7 @@ paths:
       summary: Update comment by id
       tags:
       - Comments
-  /comments/hotel/{hotel_id}:
+  /api/v1/comments/hotel/{hotel_id}:
     get:
       consumes:
       - application/json
@@ -213,7 +229,7 @@ paths:
       summary: Get comments by hotel id
       tags:
       - Comments
-  /hotels:
+  /api/v1/hotels:
     get:
       consumes:
       - application/json
@@ -251,7 +267,7 @@ paths:
       summary: Create new hotel
       tags:
       - Hotels
-  /hotels/{hotel_id}:
+  /api/v1/hotels/{hotel_id}:
     get:
       consumes:
       - application/json
@@ -291,7 +307,7 @@ paths:
       summary: Update hotel data
       tags:
       - Hotels
-  /hotels/{id}/image:
+  /api/v1/hotels/{id}/image:
     put:
       consumes:
       - multipart/form-data

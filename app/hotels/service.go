@@ -3,9 +3,9 @@ package hotels
 import (
 	"context"
 	"encoding/json"
+	"errors"
 
 	"github.com/opentracing/opentracing-go"
-	"github.com/pkg/errors"
 	uuid "github.com/satori/go.uuid"
 	"github.com/streadway/amqp"
 
@@ -53,35 +53,35 @@ func NewService(repository Repository, logger logger.Logger, publisher Publisher
 }
 
 func (h *ServiceImpl) CreateHotel(ctx context.Context, hotel *HotelDO) (*HotelDO, error) {
-	span, ctx := opentracing.StartSpanFromContext(ctx, "service.CreateHotel")
+	span, ctx := opentracing.StartSpanFromContext(ctx, "hotels_service.CreateHotel")
 	defer span.Finish()
 
 	return h.repository.CreateHotel(ctx, hotel)
 }
 
 func (h *ServiceImpl) UpdateHotel(ctx context.Context, hotel *HotelDO) (*HotelDO, error) {
-	span, ctx := opentracing.StartSpanFromContext(ctx, "service.UpdateHotel")
+	span, ctx := opentracing.StartSpanFromContext(ctx, "hotels_service.UpdateHotel")
 	defer span.Finish()
 
 	return h.repository.UpdateHotel(ctx, hotel)
 }
 
 func (h *ServiceImpl) GetHotelByID(ctx context.Context, hotelID uuid.UUID) (*HotelDO, error) {
-	span, ctx := opentracing.StartSpanFromContext(ctx, "service.GetHotelByID")
+	span, ctx := opentracing.StartSpanFromContext(ctx, "hotels_service.GetHotelByID")
 	defer span.Finish()
 
 	return h.repository.GetHotelByID(ctx, hotelID)
 }
 
 func (h *ServiceImpl) GetHotels(ctx context.Context, query *pagination.Pagination) (*List, error) {
-	span, ctx := opentracing.StartSpanFromContext(ctx, "service.CreateHotel")
+	span, ctx := opentracing.StartSpanFromContext(ctx, "hotels_service.CreateHotel")
 	defer span.Finish()
 
 	return h.repository.GetHotels(ctx, query)
 }
 
 func (h *ServiceImpl) UploadImage(ctx context.Context, msg *UploadHotelImageMsg) error {
-	span, ctx := opentracing.StartSpanFromContext(ctx, "service.UploadImage")
+	span, ctx := opentracing.StartSpanFromContext(ctx, "hotels_service.UploadImage")
 	defer span.Finish()
 
 	headers := make(amqp.Table, 1)
@@ -94,19 +94,19 @@ func (h *ServiceImpl) UploadImage(ctx context.Context, msg *UploadHotelImageMsg)
 		headers,
 		msg.Data,
 	); err != nil {
-		return errors.Wrap(err, "UpdateUploadedAvatar.Publish")
+		return errors.Join(err, errors.New("while publishing image"))
 	}
 
 	return nil
 }
 
 func (h *ServiceImpl) UpdateHotelImage(ctx context.Context, delivery amqp.Delivery) error {
-	span, ctx := opentracing.StartSpanFromContext(ctx, "service.UpdateHotelImage")
+	span, ctx := opentracing.StartSpanFromContext(ctx, "hotels_service.UpdateHotelImage")
 	defer span.Finish()
 
 	var msg UpdateHotelImageMsg
 	if err := json.Unmarshal(delivery.Body, &msg); err != nil {
-		return errors.Wrap(err, "UpdateHotelImage.json.Unmarshal")
+		return errors.Join(err, errors.New("while unmarshalling json"))
 	}
 
 	if err := h.repository.UpdateHotelImage(ctx, msg.HotelID, msg.Image); err != nil {
@@ -130,7 +130,7 @@ func (h *ServiceImpl) validateDeliveryHeaders(delivery amqp.Delivery) (*uuid.UUI
 
 	parsedUUID, err := uuid.FromString(hotelID)
 	if err != nil {
-		return nil, errors.Wrap(err, "uuid.FromString")
+		return nil, errors.Join(err, errors.New("while reading uuid"))
 	}
 
 	return &parsedUUID, nil

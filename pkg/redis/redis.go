@@ -8,20 +8,20 @@ import (
 
 // Redis config
 type Config struct {
-	RedisAddr      string
-	RedisPassword  string
-	RedisDB        string
-	RedisDefaultDB string
-	Password       string
-	MinIdleConn    int
-	PoolSize       int
-	PoolTimeout    int
-	DB             int
+	Addr            string
+	RedisPassword   string
+	Database        string
+	DefaultDatabase string
+	Password        string
+	MinIdleConn     int
+	PoolSize        int
+	PoolTimeout     int
+	DB              int
 }
 
 // Returns new redis client
 func NewRedisClient(cfg Config) *redis.Client {
-	redisHost := cfg.RedisAddr
+	redisHost := cfg.Addr
 
 	if redisHost == "" {
 		redisHost = ":6379"

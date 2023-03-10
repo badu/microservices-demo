@@ -1,10 +1,11 @@
 package config
 
 import (
+	"encoding/json"
+	"errors"
 	"fmt"
 	"time"
 
-	"github.com/pkg/errors"
 	"github.com/spf13/viper"
 
 	"github.com/badu/microservices-demo/pkg/jaeger"
@@ -47,6 +48,7 @@ type GRPCServer struct {
 	SessionID              string
 	CSRFPrefix             string
 	Mode                   string
+	CsrfSalt               string
 	CsrfExpire             int
 	SessionExpire          int
 	Timeout                time.Duration
@@ -94,7 +96,7 @@ func LoadConfig(filename string) (*viper.Viper, error) {
 	v.AutomaticEnv()
 	if err := v.ReadInConfig(); err != nil {
 		if _, ok := err.(viper.ConfigFileNotFoundError); ok {
-			return nil, errors.Wrap(err, "config file not found")
+			return nil, errors.Join(err, errors.New("config file was not found"))
 		}
 		return nil, err
 	}
@@ -111,10 +113,19 @@ func ParseConfig(v *viper.Viper) (*Config, error) {
 		return nil, err
 	}
 
-	fmt.Printf("config : %#v", c)
+	// inherit the version from the grpc server
+	if len(c.GRPCServer.AppVersion) > 0 {
+		c.HttpServer.AppVersion = c.GRPCServer.AppVersion
+	}
+
+	if c.Logger.PrintConfig {
+		// print out the config as json
+		jsonConfig, _ := json.MarshalIndent(c, "", "\t")
+		fmt.Printf("config : %s", jsonConfig)
+	}
 
 	if len(c.HttpServer.AppVersion) == 0 {
-		return nil, errors.New("app version was not found in config!")
+		return nil, errors.New("app version was not found in config")
 	}
 
 	return c, nil

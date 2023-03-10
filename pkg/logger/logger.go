@@ -14,6 +14,7 @@ type Config struct {
 	Development       bool
 	DisableCaller     bool
 	DisableStacktrace bool
+	PrintConfig       bool
 }
 
 // Logger methods interface
@@ -84,6 +85,10 @@ func (l *ApiLogger) InitLogger() {
 	encoderCfg.NameKey = "NAME"
 	encoderCfg.MessageKey = "MESSAGE"
 
+	if l.cfg.DisableCaller {
+		encoderCfg.CallerKey = ""
+	}
+
 	if l.cfg.Encoding == "console" {
 		encoder = zapcore.NewConsoleEncoder(encoderCfg)
 	} else {
@@ -98,6 +103,7 @@ func (l *ApiLogger) InitLogger() {
 	if err := l.sugarLogger.Sync(); err != nil {
 		l.sugarLogger.Error(err)
 	}
+
 }
 
 // Logger methods

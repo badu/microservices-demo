@@ -41,11 +41,10 @@ func NewApplication(logger logger.Logger, cfg *config.Config, redisConn *redis.C
 func (s *Application) Run() error {
 	ctx, cancel := context.WithCancel(context.Background())
 
-	im := grpc_client.NewClientMiddleware(s.logger, s.cfg, s.tracer)
 	repository := NewRepository(s.redisConn, s.cfg.GRPCServer.SessionPrefix, time.Duration(s.cfg.GRPCServer.SessionExpire)*time.Minute)
 	service := NewService(&repository)
 	csrfRepository := NewCSRFRepository(s.redisConn, s.cfg.GRPCServer.CSRFPrefix, time.Duration(s.cfg.GRPCServer.CsrfExpire)*time.Minute)
-	csrfService := NewCSRFService(&csrfRepository)
+	csrfService := NewCSRFService(s.cfg.GRPCServer.CsrfSalt, &csrfRepository)
 
 	router := echo.New()
 	router.GET("/metrics", echo.WrapHandler(promhttp.Handler()))
@@ -64,6 +63,7 @@ func (s *Application) Run() error {
 	}
 	defer l.Close()
 
+	im := grpc_client.NewClientMiddleware(s.logger, s.cfg, s.tracer)
 	grpcServer := grpc.NewServer(
 		grpc.KeepaliveParams(
 			keepalive.ServerParameters{
@@ -100,17 +100,17 @@ func (s *Application) Run() error {
 
 	select {
 	case v := <-quit:
-		s.logger.Errorf("signal.Notify: %v", v)
+		s.logger.Errorf("got signal.Notify: %v", v)
 	case done := <-ctx.Done():
-		s.logger.Errorf("ctx.Done: %v", done)
+		s.logger.Errorf("got ctx.Done: %v", done)
 	}
 
 	if err := router.Shutdown(ctx); err != nil {
-		s.logger.Errorf("Metrics router.Shutdown: %v", err)
+		s.logger.Errorf("server shutdown error: %v", err)
 	}
 
 	grpcServer.GracefulStop()
-	s.logger.Info("Server Exited Properly")
+	s.logger.Info("sessions server exited properly")
 
 	return nil
 }

@@ -2,9 +2,9 @@ package comments
 
 import (
 	"context"
+	"errors"
 
 	"github.com/opentracing/opentracing-go"
-	"github.com/pkg/errors"
 	uuid "github.com/satori/go.uuid"
 	"google.golang.org/grpc"
 
@@ -36,25 +36,25 @@ func NewService(
 }
 
 func (s *ServiceImpl) Create(ctx context.Context, comment *CommentDO) (*CommentDO, error) {
-	span, ctx := opentracing.StartSpanFromContext(ctx, "ServiceImpl.Create")
+	span, ctx := opentracing.StartSpanFromContext(ctx, "comments_service.Create")
 	defer span.Finish()
 	return s.repository.Create(ctx, comment)
 }
 
 func (s *ServiceImpl) GetByID(ctx context.Context, commentID uuid.UUID) (*CommentDO, error) {
-	span, ctx := opentracing.StartSpanFromContext(ctx, "ServiceImpl.GetByID")
+	span, ctx := opentracing.StartSpanFromContext(ctx, "comments_service.GetByID")
 	defer span.Finish()
 	return s.repository.GetByID(ctx, commentID)
 }
 
 func (s *ServiceImpl) Update(ctx context.Context, comment *CommentDO) (*CommentDO, error) {
-	span, ctx := opentracing.StartSpanFromContext(ctx, "ServiceImpl.Update")
+	span, ctx := opentracing.StartSpanFromContext(ctx, "comments_service.Update")
 	defer span.Finish()
 	return s.repository.Update(ctx, comment)
 }
 
 func (s *ServiceImpl) GetByHotelID(ctx context.Context, hotelID uuid.UUID, query *pagination.Pagination) (*FullList, error) {
-	span, ctx := opentracing.StartSpanFromContext(ctx, "ServiceImpl.GetByHotelID")
+	span, ctx := opentracing.StartSpanFromContext(ctx, "comments_service.GetByHotelID")
 	defer span.Finish()
 
 	commentsList, err := s.repository.GetByHotelID(ctx, hotelID, query)
@@ -74,11 +74,11 @@ func (s *ServiceImpl) GetByHotelID(ctx context.Context, hotelID uuid.UUID, query
 
 	conn, client, err := s.grpcClientFactory(ctx)
 	if err != nil {
-		return nil, errors.Wrap(err, "ServiceImpl.GetByHotelID")
+		return nil, errors.Join(err, errors.New("comments service GetByHotelID"))
 	}
 	defer conn.Close()
 
-	usersByIDs, err := client.GetUsersByIDs(ctx, &users.GetByIDsReq{UsersIDs: userIDS})
+	usersByIDs, err := client.GetUsersByIDs(ctx, &users.GetUsersByIDsRequest{UsersIDs: userIDS})
 	if err != nil {
 		return nil, err
 	}

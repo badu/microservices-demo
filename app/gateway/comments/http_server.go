@@ -48,11 +48,10 @@ func NewServer(
 // @Accept json
 // @Produce json
 // @Success 201 {object} Comment
-// @Router /comments [post]
-// @BasePath /api/v1
+// @Router /api/v1/comments [post]
 func (s *ServerImpl) CreateComment() echo.HandlerFunc {
 	return func(c echo.Context) error {
-		span, ctx := opentracing.StartSpanFromContext(c.Request().Context(), "ServerImpl.CreateComment")
+		span, ctx := opentracing.StartSpanFromContext(c.Request().Context(), "gateway_comments_http_server.CreateComment")
 		defer span.Finish()
 
 		var comm Comment
@@ -84,11 +83,10 @@ func (s *ServerImpl) CreateComment() echo.HandlerFunc {
 // @Produce json
 // @Param comment_id query string false "comment uuid"
 // @Success 200 {object} Comment
-// @Router /comments/{comment_id} [get]
-// @BasePath /api/v1
+// @Router /api/v1/comments/{comment_id} [get]
 func (s *ServerImpl) GetCommByID() echo.HandlerFunc {
 	return func(c echo.Context) error {
-		span, ctx := opentracing.StartSpanFromContext(c.Request().Context(), "ServerImpl.GetCommByID")
+		span, ctx := opentracing.StartSpanFromContext(c.Request().Context(), "gateway_comments_http_server.GetCommByID")
 		defer span.Finish()
 
 		commUUID, err := uuid.FromString(c.QueryParam("comment_id"))
@@ -115,11 +113,10 @@ func (s *ServerImpl) GetCommByID() echo.HandlerFunc {
 // @Produce json
 // @Param comment_id query string false "comment uuid"
 // @Success 200 {object} Comment
-// @Router /comments/{comment_id} [put]
-// @BasePath /api/v1
+// @Router /api/v1/comments/{comment_id} [put]
 func (s *ServerImpl) UpdateComment() echo.HandlerFunc {
 	return func(c echo.Context) error {
-		span, ctx := opentracing.StartSpanFromContext(c.Request().Context(), "ServerImpl.UpdateComment")
+		span, ctx := opentracing.StartSpanFromContext(c.Request().Context(), "gateway_comments_http_server.UpdateComment")
 		defer span.Finish()
 
 		commUUID, err := uuid.FromString(c.QueryParam("comment_id"))
@@ -158,11 +155,10 @@ func (s *ServerImpl) UpdateComment() echo.HandlerFunc {
 // @Produce json
 // @Param hotel_id query string false "hotel uuid"
 // @Success 200 {object} List
-// @Router /comments/hotel/{hotel_id} [get]
-// @BasePath /api/v1
+// @Router /api/v1/comments/hotel/{hotel_id} [get]
 func (s *ServerImpl) GetByHotelID() echo.HandlerFunc {
 	return func(c echo.Context) error {
-		span, ctx := opentracing.StartSpanFromContext(c.Request().Context(), "ServerImpl.GetByHotelID")
+		span, ctx := opentracing.StartSpanFromContext(c.Request().Context(), "gateway_comments_http_server.GetByHotelID")
 		defer span.Finish()
 
 		hotelUUID, err := uuid.FromString(c.QueryParam("hotel_id"))

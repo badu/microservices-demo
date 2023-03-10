@@ -31,7 +31,7 @@ func NewImageServer(cfg *config.Config, logger logger.Logger, service Service) I
 }
 
 func (i *ImageServer) GetImageByID(ctx context.Context, req *GetByIDRequest) (*GetByIDResponse, error) {
-	span, ctx := opentracing.StartSpanFromContext(ctx, "imageServer.GetImageByID")
+	span, ctx := opentracing.StartSpanFromContext(ctx, "images_grpc_server.GetImageByID")
 	defer span.Finish()
 
 	imageUUID, err := uuid.FromString(req.GetImageID())

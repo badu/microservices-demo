@@ -2,10 +2,10 @@ package users
 
 import (
 	"context"
+	"errors"
 	"sync"
 
 	"github.com/opentracing/opentracing-go"
-	"github.com/pkg/errors"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promauto"
 	"github.com/streadway/amqp"
@@ -58,7 +58,7 @@ func (c *RabbitConsumerImpl) Dial() error {
 func (c *RabbitConsumerImpl) CreateExchangeAndQueue(exchangeName, queueName, bindingKey string) (*amqp.Channel, error) {
 	ch, err := c.amqpConn.Channel()
 	if err != nil {
-		return nil, errors.Wrap(err, "Error amqpConn.Channel")
+		return nil, errors.Join(err, errors.New("Error amqpConn.Channel"))
 	}
 
 	c.logger.Infof("Declaring exchange: %s", exchangeName)
@@ -72,7 +72,7 @@ func (c *RabbitConsumerImpl) CreateExchangeAndQueue(exchangeName, queueName, bin
 		nil,
 	)
 	if err != nil {
-		return nil, errors.Wrap(err, "Error ch.ExchangeDeclare")
+		return nil, errors.Join(err, errors.New("Error ch.ExchangeDeclare"))
 	}
 
 	queue, err := ch.QueueDeclare(
@@ -84,7 +84,7 @@ func (c *RabbitConsumerImpl) CreateExchangeAndQueue(exchangeName, queueName, bin
 		nil,
 	)
 	if err != nil {
-		return nil, errors.Wrap(err, "Error ch.QueueDeclare")
+		return nil, errors.Join(err, errors.New("Error ch.QueueDeclare"))
 	}
 
 	c.logger.Infof("Declared queue, binding it to exchange: Queue: %v, messagesCount: %v, "+
@@ -104,7 +104,7 @@ func (c *RabbitConsumerImpl) CreateExchangeAndQueue(exchangeName, queueName, bin
 		nil,
 	)
 	if err != nil {
-		return nil, errors.Wrap(err, "Error ch.QueueBind")
+		return nil, errors.Join(err, errors.New("Error ch.QueueBind"))
 	}
 
 	err = ch.Qos(
@@ -113,7 +113,7 @@ func (c *RabbitConsumerImpl) CreateExchangeAndQueue(exchangeName, queueName, bin
 		prefetchGlobal, // global
 	)
 	if err != nil {
-		return nil, errors.Wrap(err, "Error  ch.Qos")
+		return nil, errors.Join(err, errors.New("Error  ch.Qos"))
 	}
 
 	return ch, nil
@@ -128,7 +128,7 @@ func (c *RabbitConsumerImpl) startConsume(
 ) error {
 	ch, err := c.amqpConn.Channel()
 	if err != nil {
-		return errors.Wrap(err, "c.amqpConn.Channel")
+		return errors.Join(err, errors.New("c.amqpConn.Channel"))
 	}
 
 	deliveries, err := ch.Consume(
@@ -141,7 +141,7 @@ func (c *RabbitConsumerImpl) startConsume(
 		nil,
 	)
 	if err != nil {
-		return errors.Wrap(err, "ch.Consume")
+		return errors.Join(err, errors.New("ch.Consume"))
 	}
 
 	wg := &sync.WaitGroup{}
@@ -179,7 +179,7 @@ func (c *RabbitConsumerImpl) imagesWorker(ctx context.Context, wg *sync.WaitGrou
 	defer wg.Done()
 
 	for delivery := range messages {
-		span, ctx := opentracing.StartSpanFromContext(ctx, "ImageConsumer.resizeWorker")
+		span, ctx := opentracing.StartSpanFromContext(ctx, "rabbit_consumer_users_image.ResizeWorker")
 
 		c.logger.Infof("processDeliveries deliveryTag% v", delivery.DeliveryTag)
 

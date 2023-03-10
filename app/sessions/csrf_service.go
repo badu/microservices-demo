@@ -4,10 +4,10 @@ import (
 	"context"
 	"crypto/sha256"
 	"encoding/base64"
+	"errors"
 	"io"
 
 	"github.com/opentracing/opentracing-go"
-	"github.com/pkg/errors"
 )
 
 type CSRFService interface {
@@ -15,46 +15,41 @@ type CSRFService interface {
 	ValidateCSRFToken(ctx context.Context, sesID string, token string) (bool, error)
 }
 
-const (
-	CSRFHeader = "X-CSRF-Token"
-	// 32 bytes
-	csrfSalt = "KbWaoi5xtDC3GEfBa9ovQdzOzXsuVU9I"
-)
-
 type CSRFRepository interface {
 	Create(ctx context.Context, token string) error
 	GetToken(ctx context.Context, token string) (string, error)
 }
 
 type CsrfServiceImpl struct {
-	csrfRepo CSRFRepository
+	repository CSRFRepository
+	salt       string
 }
 
-func NewCSRFService(csrfRepo CSRFRepository) CsrfServiceImpl {
-	return CsrfServiceImpl{csrfRepo: csrfRepo}
+func NewCSRFService(salt string, csrfRepo CSRFRepository) CsrfServiceImpl {
+	return CsrfServiceImpl{repository: csrfRepo, salt: salt}
 }
 
 func (c *CsrfServiceImpl) GetCSRFToken(ctx context.Context, sesID string) (string, error) {
-	span, ctx := opentracing.StartSpanFromContext(ctx, "CsrfServiceImpl.CreateToken")
+	span, ctx := opentracing.StartSpanFromContext(ctx, "csrf_service.CreateToken")
 	defer span.Finish()
 
 	token, err := c.makeToken(sesID)
 	if err != nil {
-		return "", errors.Wrap(err, "CsrfServiceImpl.CreateToken.c.makeToken")
+		return "", errors.Join(err, errors.New("CsrfServiceImpl.CreateToken.c.makeToken"))
 	}
 
-	if err := c.csrfRepo.Create(ctx, token); err != nil {
-		return "", errors.Wrap(err, "CsrfServiceImpl.CreateToken.csrfRepo.Create")
+	if err := c.repository.Create(ctx, token); err != nil {
+		return "", errors.Join(err, errors.New("CsrfServiceImpl.CreateToken.repository.Create"))
 	}
 
 	return token, nil
 }
 
 func (c *CsrfServiceImpl) ValidateCSRFToken(ctx context.Context, sesID string, token string) (bool, error) {
-	span, ctx := opentracing.StartSpanFromContext(ctx, "CsrfServiceImpl.CheckToken")
+	span, ctx := opentracing.StartSpanFromContext(ctx, "csrf_service.CheckToken")
 	defer span.Finish()
 
-	existsToken, err := c.csrfRepo.GetToken(ctx, token)
+	existsToken, err := c.repository.GetToken(ctx, token)
 	if err != nil {
 		return false, err
 	}
@@ -63,11 +58,13 @@ func (c *CsrfServiceImpl) ValidateCSRFToken(ctx context.Context, sesID string, t
 }
 
 func (c *CsrfServiceImpl) makeToken(sessionID string) (string, error) {
+
 	hash := sha256.New()
-	_, err := io.WriteString(hash, csrfSalt+sessionID)
+	_, err := io.WriteString(hash, c.salt+sessionID)
 	if err != nil {
 		return "", err
 	}
+
 	token := base64.RawStdEncoding.EncodeToString(hash.Sum(nil))
 	return token, nil
 }
@@ -77,5 +74,6 @@ func (c *CsrfServiceImpl) validateToken(token string, sessionID string) bool {
 	if err != nil {
 		return false
 	}
+
 	return token == trueToken
 }

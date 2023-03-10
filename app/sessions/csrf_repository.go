@@ -2,12 +2,12 @@ package sessions
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"time"
 
 	"github.com/go-redis/redis/v8"
 	"github.com/opentracing/opentracing-go"
-	"github.com/pkg/errors"
 )
 
 type CsrfRepositoryImpl struct {
@@ -22,11 +22,11 @@ func NewCSRFRepository(redis *redis.Client, prefix string, duration time.Duratio
 
 // Create csrf token
 func (r *CsrfRepositoryImpl) Create(ctx context.Context, token string) error {
-	span, ctx := opentracing.StartSpanFromContext(ctx, "CsrfRepositoryImpl.Create")
+	span, ctx := opentracing.StartSpanFromContext(ctx, "csrf_repository.Create")
 	defer span.Finish()
 
 	if err := r.redis.SetEX(ctx, r.createKey(token), token, r.duration).Err(); err != nil {
-		return errors.Wrap(err, "CsrfRepositoryImpl.Create.redis.SetEX")
+		return errors.Join(err, errors.New("CsrfRepositoryImpl.Create.redis.SetEX"))
 	}
 
 	return nil
@@ -34,7 +34,7 @@ func (r *CsrfRepositoryImpl) Create(ctx context.Context, token string) error {
 
 // Check csrf token
 func (r *CsrfRepositoryImpl) GetToken(ctx context.Context, token string) (string, error) {
-	span, ctx := opentracing.StartSpanFromContext(ctx, "CsrfRepositoryImpl.Check")
+	span, ctx := opentracing.StartSpanFromContext(ctx, "csrf_repository.Check")
 	defer span.Finish()
 
 	token, err := r.redis.Get(ctx, r.createKey(token)).Result()

@@ -4,7 +4,7 @@
         "contact": {}
     },
     "paths": {
-        "/user/csrf": {
+        "/api/v1/users/csrf": {
             "get": {
                 "description": "Get csrf token, required session",
                 "consumes": [
@@ -24,7 +24,7 @@
                 }
             }
         },
-        "/user/login": {
+        "/api/v1/users/login": {
             "post": {
                 "description": "login user, returns user data and session",
                 "consumes": [
@@ -58,7 +58,7 @@
                 }
             }
         },
-        "/user/logout": {
+        "/api/v1/users/logout": {
             "post": {
                 "description": "Logout user, return no content",
                 "consumes": [
@@ -78,7 +78,7 @@
                 }
             }
         },
-        "/user/me": {
+        "/api/v1/users/me": {
             "get": {
                 "description": "Get current user data, required session cookie",
                 "consumes": [
@@ -101,7 +101,7 @@
                 }
             }
         },
-        "/user/register": {
+        "/api/v1/users/register": {
             "post": {
                 "description": "register new user account, returns user data and session",
                 "consumes": [
@@ -135,7 +135,7 @@
                 }
             }
         },
-        "/user/{id}": {
+        "/api/v1/users/{id}": {
             "get": {
                 "description": "Get user data by id",
                 "consumes": [
@@ -164,9 +164,30 @@
                         }
                     }
                 }
+            },
+            "put": {
+                "description": "update user profile",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "UserDO"
+                ],
+                "summary": "Update user",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/users.UserResponse"
+                        }
+                    }
+                }
             }
         },
-        "/user/{id}/avatar": {
+        "/api/v1/users/{id}/avatar": {
             "put": {
                 "description": "Upload user avatar image",
                 "consumes": [
@@ -210,9 +231,24 @@
                     "type": "string"
                 },
                 "password": {
-                    "type": "string"
+                    "type": "string",
+                    "maxLength": 250,
+                    "minLength": 6
                 }
             }
+        },
+        "users.Role": {
+            "type": "string",
+            "enum": [
+                "guest",
+                "member",
+                "admin"
+            ],
+            "x-enum-varnames": [
+                "RoleGuest",
+                "RoleMember",
+                "RoleAdmin"
+            ]
         },
         "users.UserDO": {
             "type": "object",
@@ -224,7 +260,8 @@
             ],
             "properties": {
                 "avatar": {
-                    "type": "string"
+                    "type": "string",
+                    "maxLength": 250
                 },
                 "created_at": {
                     "type": "string"
@@ -233,16 +270,22 @@
                     "type": "string"
                 },
                 "first_name": {
-                    "type": "string"
+                    "type": "string",
+                    "maxLength": 25,
+                    "minLength": 3
                 },
                 "last_name": {
-                    "type": "string"
+                    "type": "string",
+                    "maxLength": 25,
+                    "minLength": 3
                 },
                 "password": {
-                    "type": "string"
+                    "type": "string",
+                    "maxLength": 250,
+                    "minLength": 6
                 },
                 "role": {
-                    "type": "string"
+                    "$ref": "#/definitions/users.Role"
                 },
                 "updated_at": {
                     "type": "string"
@@ -261,7 +304,8 @@
             ],
             "properties": {
                 "avatar": {
-                    "type": "string"
+                    "type": "string",
+                    "maxLength": 250
                 },
                 "created_at": {
                     "type": "string"
@@ -270,13 +314,17 @@
                     "type": "string"
                 },
                 "first_name": {
-                    "type": "string"
+                    "type": "string",
+                    "maxLength": 25,
+                    "minLength": 3
                 },
                 "last_name": {
-                    "type": "string"
+                    "type": "string",
+                    "maxLength": 25,
+                    "minLength": 3
                 },
                 "role": {
-                    "type": "string"
+                    "$ref": "#/definitions/users.Role"
                 },
                 "updated_at": {
                     "type": "string"

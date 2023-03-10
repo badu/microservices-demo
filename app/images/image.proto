@@ -8,10 +8,10 @@ package images;
 option go_package = "github.com/badu/microservices-demo/app/images;images";
 
 message Image {
+  google.protobuf.Timestamp     CreatedAt       = 4;
   string                        ImageID         = 1;
   string                        ImageURL        = 2;
   bool                          IsUploaded      = 3;
-  google.protobuf.Timestamp     CreatedAt       = 4;
 }
 
 message GetByIDResponse {

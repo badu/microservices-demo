@@ -2,10 +2,10 @@ package comments
 
 import (
 	"context"
+	"errors"
 
 	"github.com/jackc/pgx/v4/pgxpool"
 	"github.com/opentracing/opentracing-go"
-	"github.com/pkg/errors"
 	uuid "github.com/satori/go.uuid"
 
 	"github.com/badu/microservices-demo/pkg/pagination"
@@ -33,7 +33,7 @@ func NewRepository(db *pgxpool.Pool) RepositoryImpl {
 }
 
 func (c *RepositoryImpl) Create(ctx context.Context, comment *CommentDO) (*CommentDO, error) {
-	span, ctx := opentracing.StartSpanFromContext(ctx, "RepositoryImpl.Create")
+	span, ctx := opentracing.StartSpanFromContext(ctx, "comments_repository.Create")
 	defer span.Finish()
 
 	var comm CommentDO
@@ -55,14 +55,14 @@ func (c *RepositoryImpl) Create(ctx context.Context, comment *CommentDO) (*Comme
 		&comm.CreatedAt,
 		&comm.UpdatedAt,
 	); err != nil {
-		return nil, errors.Wrap(err, "Scan")
+		return nil, errors.Join(err, errors.New("comments repository scan"))
 	}
 
 	return &comm, nil
 }
 
 func (c *RepositoryImpl) GetByID(ctx context.Context, commentID uuid.UUID) (*CommentDO, error) {
-	span, ctx := opentracing.StartSpanFromContext(ctx, "RepositoryImpl.GetByID")
+	span, ctx := opentracing.StartSpanFromContext(ctx, "comments_repository.GetByID")
 	defer span.Finish()
 
 	var comm CommentDO
@@ -76,14 +76,14 @@ func (c *RepositoryImpl) GetByID(ctx context.Context, commentID uuid.UUID) (*Com
 		&comm.CreatedAt,
 		&comm.UpdatedAt,
 	); err != nil {
-		return nil, errors.Wrap(err, "Scan")
+		return nil, errors.Join(err, errors.New("comments repository scan"))
 	}
 
 	return &comm, nil
 }
 
 func (c *RepositoryImpl) Update(ctx context.Context, comment *CommentDO) (*CommentDO, error) {
-	span, ctx := opentracing.StartSpanFromContext(ctx, "RepositoryImpl.Update")
+	span, ctx := opentracing.StartSpanFromContext(ctx, "comments_repository.Update")
 	defer span.Finish()
 
 	var comm CommentDO
@@ -97,19 +97,19 @@ func (c *RepositoryImpl) Update(ctx context.Context, comment *CommentDO) (*Comme
 		&comm.CreatedAt,
 		&comm.UpdatedAt,
 	); err != nil {
-		return nil, errors.Wrap(err, "Scan")
+		return nil, errors.Join(err, errors.New("comments repository scan"))
 	}
 
 	return &comm, nil
 }
 
 func (c *RepositoryImpl) GetByHotelID(ctx context.Context, hotelID uuid.UUID, query *pagination.Pagination) (*List, error) {
-	span, ctx := opentracing.StartSpanFromContext(ctx, "RepositoryImpl.GetByHotelID")
+	span, ctx := opentracing.StartSpanFromContext(ctx, "comments_repository.GetByHotelID")
 	defer span.Finish()
 
 	var totalCount int
 	if err := c.db.QueryRow(ctx, getTotalCountQuery, hotelID).Scan(&totalCount); err != nil {
-		return nil, errors.Wrap(err, "Scan")
+		return nil, errors.Join(err, errors.New("comments repository scan"))
 	}
 
 	if totalCount == 0 {
@@ -126,7 +126,7 @@ func (c *RepositoryImpl) GetByHotelID(ctx context.Context, hotelID uuid.UUID, qu
 	var commentsList []*CommentDO
 	rows, err := c.db.Query(ctx, getCommentByHotelIDQuery, hotelID, query.GetOffset(), query.GetLimit())
 	if err != nil {
-		return nil, errors.Wrap(err, "db.Query")
+		return nil, errors.Join(err, errors.New("comments repository query"))
 	}
 	defer rows.Close()
 
@@ -142,13 +142,13 @@ func (c *RepositoryImpl) GetByHotelID(ctx context.Context, hotelID uuid.UUID, qu
 			&comm.CreatedAt,
 			&comm.UpdatedAt,
 		); err != nil {
-			return nil, errors.Wrap(err, "Scan")
+			return nil, errors.Join(err, errors.New("comments repository scan"))
 		}
 		commentsList = append(commentsList, &comm)
 	}
 
 	if err := rows.Err(); err != nil {
-		return nil, errors.Wrap(err, "rows.Err")
+		return nil, errors.Join(err, errors.New("comments repository rows"))
 	}
 
 	return &List{

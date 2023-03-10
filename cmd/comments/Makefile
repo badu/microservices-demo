@@ -2,7 +2,7 @@
 # Go migrate postgresql User service
 # ==============================================================================
 
-comments_dbname =comments
+comments_dbname = comments_db
 comments_port = 5436
 comments_SSL_MODE = disable
 

@@ -1,7 +1,8 @@
 package hotels
 
 import (
-	"github.com/pkg/errors"
+	"errors"
+
 	"github.com/streadway/amqp"
 )
 
@@ -39,12 +40,12 @@ const (
 
 func (c *ConsumerImpl) Initialize() error {
 	if err := c.Dial(); err != nil {
-		return errors.Wrap(err, "Consumer Dial")
+		return errors.Join(err, errors.New("while dialing rabbitmq"))
 	}
 
 	updateImageChan, err := c.CreateExchangeAndQueue(ExchangeName, UpdateImageQueue, UpdateImageBindingKey)
 	if err != nil {
-		return errors.Wrap(err, "CreateExchangeAndQueue")
+		return errors.Join(err, errors.New("while creating rabbit mq exchange an queue"))
 	}
 
 	c.channels = append(c.channels, updateImageChan)

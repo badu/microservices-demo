@@ -1,7 +1,8 @@
 package images
 
 import (
-	"github.com/pkg/errors"
+	"errors"
+
 	"github.com/streadway/amqp"
 )
 
@@ -50,24 +51,24 @@ const (
 // Initialize consumers
 func (c *ConsumerImpl) Initialize() error {
 	if err := c.Dial(); err != nil {
-		return errors.Wrap(err, "Consumer Dial")
+		return errors.Join(err, errors.New("images.ConsumerDial"))
 	}
 
 	updateImageChan, err := c.CreateExchangeAndQueue(ExchangeName, UploadHotelImageQueue, UploadHotelImageBindingKey)
 	if err != nil {
-		return errors.Wrap(err, "images.CreateExchangeAndQueue")
+		return errors.Join(err, errors.New("images.CreateExchangeAndQueue"))
 	}
 	c.channels = append(c.channels, updateImageChan)
 
 	resizeChan, err := c.CreateExchangeAndQueue(ExchangeName, ResizeQueueName, ResizeBindingKey)
 	if err != nil {
-		return errors.Wrap(err, "images.CreateExchangeAndQueue")
+		return errors.Join(err, errors.New("images.CreateExchangeAndQueue"))
 	}
 	c.channels = append(c.channels, resizeChan)
 
 	createImgChan, err := c.CreateExchangeAndQueue(ExchangeName, CreateQueueName, CreateBindingKey)
 	if err != nil {
-		return errors.Wrap(err, "images.CreateExchangeAndQueue")
+		return errors.Join(err, errors.New("images.CreateExchangeAndQueue"))
 	}
 	c.channels = append(c.channels, createImgChan)
 

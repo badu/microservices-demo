@@ -2,11 +2,11 @@ package postgres
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"time"
 
 	"github.com/jackc/pgx/v4/pgxpool"
-	"github.com/pkg/errors"
 )
 
 const (
@@ -54,7 +54,7 @@ func NewPgxConn(cfg Config) (*pgxpool.Pool, error) {
 
 	connPool, err := pgxpool.ConnectConfig(ctx, poolCfg)
 	if err != nil {
-		return nil, errors.Wrap(err, "pgx.ConnectConfig")
+		return nil, errors.Join(err, errors.New("configuring postgresql connection"))
 	}
 
 	return connPool, nil

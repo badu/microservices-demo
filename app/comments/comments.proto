@@ -10,28 +10,28 @@ package comments;
 option go_package = "github.com/badu/microservices-demo/app/comments;comments";
 
 message Comment {
+  google.protobuf.Timestamp     CreatedAt       = 7;
+  google.protobuf.Timestamp     UpdatedAt       = 8;
   string                        CommentID       = 1;
   string                        HotelID         = 2;
   string                        UserID          = 3;
   string                        Message         = 4;
   repeated string               Photos          = 5;
   double                        Rating          = 6;
-  google.protobuf.Timestamp     CreatedAt       = 7;
-  google.protobuf.Timestamp     UpdatedAt       = 8;
 }
 
 message CommentFull {
+  google.protobuf.Timestamp     CreatedAt       = 7;
+  google.protobuf.Timestamp     UpdatedAt       = 8;
+  users.User                    User            = 3;
   string                        CommentID       = 1;
   string                        HotelID         = 2;
-  users.User                    User            = 3;
   string                        Message         = 4;
   repeated string               Photos          = 5;
   double                        Rating          = 6;
-  google.protobuf.Timestamp     CreatedAt       = 7;
-  google.protobuf.Timestamp     UpdatedAt       = 8;
 }
 
-message CreateCommentReq {
+message CreateCommentRequest {
   string                        HotelID         = 1;
   string                        UserID          = 2;
   string                        Message         = 3;
@@ -39,47 +39,47 @@ message CreateCommentReq {
   double                        Rating          = 5;
 }
 
-message CreateCommentRes {
+message CreateCommentResponse {
   Comment                       Comment         = 1;
 }
 
-message GetCommByIDReq {
+message GetCommentByIDRequest {
   string                        CommentID       = 1;
 }
 
-message GetCommByIDRes {
+message GetCommentByIDResponse {
   Comment                       Comment         = 1;
 }
 
-message UpdateCommReq {
+message UpdateCommentRequest {
   string                        CommentID       = 1;
   string                        Message         = 2;
   repeated string               Photos          = 3;
   double                        Rating          = 4;
 }
 
-message UpdateCommRes {
+message UpdateCommentResponse {
   Comment                       Comment         = 1;
 }
 
-message GetByHotelReq {
+message GetCommentsByHotelRequest {
   string                        HotelID         = 1;
   int64                         page            = 2;
   int64                         size            = 3;
 }
 
-message GetByHotelRes {
+message GetCommentsByHotelResponse {
+  repeated CommentFull          Comments        = 6;
   int64                         TotalCount      = 1;
   int64                         TotalPages      = 2;
   int64                         Page            = 3;
   int64                         Size            = 4;
   bool                          HasMore         = 5;
-  repeated CommentFull          Comments        = 6;
 }
 
 service commentsService {
-  rpc CreateComment(CreateCommentReq) returns (CreateCommentRes) {}
-  rpc GetCommByID(GetCommByIDReq)     returns (GetCommByIDRes) {}
-  rpc UpdateComment(UpdateCommReq)    returns (UpdateCommRes) {}
-  rpc GetByHotelID(GetByHotelReq)     returns (GetByHotelRes) {}
+  rpc CreateComment(CreateCommentRequest) returns (CreateCommentResponse) {}
+  rpc GetCommByID(GetCommentByIDRequest)     returns (GetCommentByIDResponse) {}
+  rpc UpdateComment(UpdateCommentRequest)    returns (UpdateCommentResponse) {}
+  rpc GetByHotelID(GetCommentsByHotelRequest)     returns (GetCommentsByHotelResponse) {}
 }

@@ -35,7 +35,7 @@ type ListResult struct {
 	HasMore    bool     `json:"hasMore"`
 }
 
-func HotelFromProto(v *hotelsService.Hotel) (*Hotel, error) {
+func fromProto(v *hotelsService.Hotel) (*Hotel, error) {
 	hotelUUID, err := uuid.FromString(v.GetHotelID())
 	if err != nil {
 		return nil, err

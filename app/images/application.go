@@ -2,6 +2,8 @@ package images
 
 import (
 	"context"
+	"errors"
+	"fmt"
 	"net"
 	"os"
 	"os/signal"
@@ -12,7 +14,6 @@ import (
 	"github.com/jackc/pgx/v4/pgxpool"
 	"github.com/labstack/echo/v4"
 	"github.com/opentracing/opentracing-go"
-	"github.com/pkg/errors"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promauto"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
@@ -61,11 +62,11 @@ func (s *Application) Run() error {
 
 	publisher, err := NewPublisher(s.cfg, s.logger, incomingMessages, successMessages, errorMessages)
 	if err != nil {
-		return errors.Wrap(err, "NewPublisher")
+		return errors.Join(err, errors.New("while creating publisher"))
 	}
 	uploadedChan, err := publisher.CreateExchangeAndQueue(ExchangeName, "uploaded", "uploaded")
 	if err != nil {
-		return errors.Wrap(err, "publisher.CreateExchangeAndQueue")
+		return errors.Join(err, errors.New("while CreateExchangeAndQueue"))
 	}
 	defer uploadedChan.Close()
 
@@ -75,16 +76,16 @@ func (s *Application) Run() error {
 
 	consumer := NewImageConsumer(s.logger, s.cfg, &service, incomingMessages, successMessages, errorMessages)
 	if err := consumer.Initialize(); err != nil {
-		return errors.Wrap(err, "consumer.Initialize")
+		return errors.Join(err, errors.New("while consumer initialization"))
 	}
 	consumer.RunConsumers(ctx, cancel)
 	defer consumer.CloseChannels()
 
-	l, err := net.Listen("tcp", s.cfg.GRPCServer.Port)
+	listener, err := net.Listen("tcp", s.cfg.GRPCServer.Port)
 	if err != nil {
-		return errors.Wrap(err, "net.Listen")
+		return errors.Join(err, fmt.Errorf("for listening grpc on port %s", s.cfg.GRPCServer.Port))
 	}
-	defer l.Close()
+	defer listener.Close()
 
 	router := echo.New()
 	router.GET("/metrics", echo.WrapHandler(promhttp.Handler()))
@@ -120,7 +121,7 @@ func (s *Application) Run() error {
 
 	go func() {
 		s.logger.Infof("GRPC Server is listening on port: %v", s.cfg.GRPCServer.Port)
-		s.logger.Fatal(grpcServer.Serve(l))
+		s.logger.Fatal(grpcServer.Serve(listener))
 	}()
 
 	if s.cfg.ProductionMode() {

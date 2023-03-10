@@ -9,14 +9,14 @@ package users;
 option go_package = "github.com/badu/microservices-demo/app/users;users";
 
 message User {
+  google.protobuf.Timestamp     CreatedAt   = 7;
+  google.protobuf.Timestamp     UpdatedAt   = 8;
   string                        UserID      = 1;
   string                        FirstName   = 2;
   string                        LastName    = 3;
   string                        Email       = 4;
   string                        Avatar      = 5;
   string                        Role        = 6;
-  google.protobuf.Timestamp     CreatedAt   = 7;
-  google.protobuf.Timestamp     UpdatedAt   = 8;
 }
 
 message GetByIDResponse {
@@ -28,15 +28,15 @@ message GetByIDRequest {
 }
 
 
-message GetByIDsRes {
+message GetUsersByIDsResponse {
   repeated User                 Users       = 1;
 }
 
-message GetByIDsReq {
+message GetUsersByIDsRequest {
   repeated string               UsersIDs    = 1;
 }
 
 service UserService {
   rpc GetUserByID(GetByIDRequest) returns (GetByIDResponse) {}
-  rpc GetUsersByIDs(GetByIDsReq) returns (GetByIDsRes) {}
+  rpc GetUsersByIDs(GetUsersByIDsRequest) returns (GetUsersByIDsResponse) {}
 }

@@ -45,13 +45,14 @@ logger:
   DisableStacktrace: false
   Encoding: json
   Level: info
+  PrintConfig: false
 
 postgres:
   PostgresqlHost: localhost
   PostgresqlPort: 5433
   PostgresqlUser: postgres
   PostgresqlPassword: postgres
-  PostgresqlDbname: user_db
+  PostgresqlDbname: users_db
   PostgresqlSslmode: "disable"
   PgDriver: pgx
 

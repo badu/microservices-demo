@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"image"
 	"image/gif"
 	"image/jpeg"
@@ -13,7 +14,6 @@ import (
 	"github.com/aws/aws-sdk-go/service/s3"
 	"github.com/disintegration/gift"
 	"github.com/opentracing/opentracing-go"
-	"github.com/pkg/errors"
 	uuid "github.com/satori/go.uuid"
 	"github.com/streadway/amqp"
 
@@ -78,7 +78,7 @@ func NewService(pgRepo Repository, awsRepo AWSStorage, logger logger.Logger, pub
 }
 
 func (s *ServiceImpl) Create(ctx context.Context, delivery amqp.Delivery) error {
-	span, ctx := opentracing.StartSpanFromContext(ctx, "ServiceImpl.Create")
+	span, ctx := opentracing.StartSpanFromContext(ctx, "images_service.Create")
 	defer span.Finish()
 
 	s.logger.Infof("amqp.Delivery: %-v", delivery.DeliveryTag)
@@ -99,7 +99,7 @@ func (s *ServiceImpl) Create(ctx context.Context, delivery amqp.Delivery) error 
 
 	msgBytes, err := json.Marshal(createdImage)
 	if err != nil {
-		return errors.Wrap(err, "ServiceImpl.Create.json.Marshal")
+		return errors.Join(err, errors.New("while marshalling json"))
 	}
 
 	headers := make(amqp.Table)
@@ -112,14 +112,14 @@ func (s *ServiceImpl) Create(ctx context.Context, delivery amqp.Delivery) error 
 		headers,
 		msgBytes,
 	); err != nil {
-		return errors.Wrap(err, "ServiceImpl.Create.Publish")
+		return errors.Join(err, errors.New("while publishing"))
 	}
 
 	return nil
 }
 
 func (s *ServiceImpl) ResizeImage(ctx context.Context, delivery amqp.Delivery) error {
-	span, ctx := opentracing.StartSpanFromContext(ctx, "ServiceImpl.ResizeImage")
+	span, ctx := opentracing.StartSpanFromContext(ctx, "images_service.ResizeImage")
 	defer span.Finish()
 
 	s.logger.Infof("amqp.Delivery: %-v", delivery.DeliveryTag)
@@ -148,7 +148,7 @@ func (s *ServiceImpl) ResizeImage(ctx context.Context, delivery amqp.Delivery) e
 
 	msgBytes, err := json.Marshal(msg)
 	if err != nil {
-		return errors.Wrap(err, "ServiceImpl.ResizeImage.json.Marshal")
+		return errors.Join(err, errors.New("while marshalling json"))
 	}
 
 	headers := make(amqp.Table)
@@ -161,14 +161,14 @@ func (s *ServiceImpl) ResizeImage(ctx context.Context, delivery amqp.Delivery) e
 		headers,
 		msgBytes,
 	); err != nil {
-		return errors.Wrap(err, "ServiceImpl.ResizeImage.Publish")
+		return errors.Join(err, errors.New("while publishing"))
 	}
 
 	return nil
 }
 
 func (s *ServiceImpl) GetImageByID(ctx context.Context, imageID uuid.UUID) (*ImageDO, error) {
-	span, ctx := opentracing.StartSpanFromContext(ctx, "ServiceImpl.GetImageByID")
+	span, ctx := opentracing.StartSpanFromContext(ctx, "images_service.GetImageByID")
 	defer span.Finish()
 
 	imgByID, err := s.pgRepo.GetImageByID(ctx, imageID)
@@ -180,7 +180,7 @@ func (s *ServiceImpl) GetImageByID(ctx context.Context, imageID uuid.UUID) (*Ima
 }
 
 func (s *ServiceImpl) ProcessHotelImage(ctx context.Context, delivery amqp.Delivery) error {
-	span, ctx := opentracing.StartSpanFromContext(ctx, "ServiceImpl.Create")
+	span, ctx := opentracing.StartSpanFromContext(ctx, "images_service.Create")
 	defer span.Finish()
 
 	s.logger.Infof("amqp.Delivery: %-v", delivery.DeliveryTag)
@@ -208,7 +208,7 @@ func (s *ServiceImpl) ProcessHotelImage(ctx context.Context, delivery amqp.Deliv
 
 	msgBytes, err := json.Marshal(msg)
 	if err != nil {
-		return errors.Wrap(err, "ProcessHotelImage.json.Marshal")
+		return errors.Join(err, errors.New("while marshalling json"))
 	}
 
 	headers := make(amqp.Table)
@@ -221,7 +221,7 @@ func (s *ServiceImpl) ProcessHotelImage(ctx context.Context, delivery amqp.Deliv
 		headers,
 		msgBytes,
 	); err != nil {
-		return errors.Wrap(err, "ProcessHotelImage.Publish")
+		return errors.Join(err, errors.New("while publishing"))
 	}
 
 	return nil
@@ -241,7 +241,7 @@ func (s *ServiceImpl) validateDeliveryHeaders(delivery amqp.Delivery) (*uuid.UUI
 
 	parsedUUID, err := uuid.FromString(userID)
 	if err != nil {
-		return nil, errors.Wrap(err, "uuid.FromString")
+		return nil, errors.Join(err, errors.New("while reading uuid"))
 	}
 
 	return &parsedUUID, nil
@@ -261,7 +261,7 @@ func (s *ServiceImpl) extractUUIDHeader(delivery amqp.Delivery, key string) (*uu
 
 	parsedUUID, err := uuid.FromString(userID)
 	if err != nil {
-		return nil, errors.Wrap(err, "uuid.FromString")
+		return nil, errors.Join(err, errors.New("while reading uuid"))
 	}
 
 	return &parsedUUID, nil

@@ -2,6 +2,7 @@ package users
 
 import (
 	"context"
+	"errors"
 	"net"
 	"net/http"
 	"os"
@@ -16,7 +17,6 @@ import (
 	"github.com/labstack/echo/v4"
 	"github.com/labstack/echo/v4/middleware"
 	"github.com/opentracing/opentracing-go"
-	"github.com/pkg/errors"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/keepalive"
@@ -56,8 +56,8 @@ type Application struct {
 	tracer    opentracing.Tracer
 }
 
-func NewApplication(logger logger.Logger, cfg *config.Config, redisConn *redis.Client, pgxPool *pgxpool.Pool, tracer opentracing.Tracer) *Application {
-	return &Application{logger: logger, cfg: cfg, redisConn: redisConn, pgxPool: pgxPool, echo: echo.New(), tracer: tracer}
+func NewApplication(logger logger.Logger, cfg *config.Config, redisConn *redis.Client, pgxPool *pgxpool.Pool, tracer opentracing.Tracer) Application {
+	return Application{logger: logger, cfg: cfg, redisConn: redisConn, pgxPool: pgxPool, echo: echo.New(), tracer: tracer}
 }
 
 func SessionsGRPCClientFactory(
@@ -65,9 +65,9 @@ func SessionsGRPCClientFactory(
 	cfg *config.Config,
 	tracer opentracing.Tracer,
 ) func(ctx context.Context) (*grpc.ClientConn, sessions.AuthorizationServiceClient, error) {
-	manager := grpc_client.NewClientMiddleware(logger, cfg, tracer)
+	commonMW := grpc_client.NewClientMiddleware(logger, cfg, tracer)
 	return func(ctx context.Context) (*grpc.ClientConn, sessions.AuthorizationServiceClient, error) {
-		conn, err := grpc_client.NewGRPCClientServiceConn(ctx, manager, cfg.GRPC.SessionServicePort)
+		conn, err := grpc_client.NewGRPCClientServiceConn(ctx, commonMW, cfg.GRPC.SessionServicePort)
 		if err != nil {
 			return nil, nil, err
 		}
@@ -80,12 +80,12 @@ func (a *Application) Run() error {
 	defer cancel()
 
 	validate := validator.New()
-	v1 := a.echo.Group("/api/v1")
-	usersGroup := v1.Group("/users")
+
+	v1Users := a.echo.Group("/api/v1/users")
 
 	userPublisher, err := NewUserPublisher(a.cfg, a.logger)
 	if err != nil {
-		return errors.Wrap(err, "rabbitmq.NewUserPublisher")
+		return errors.Join(err, errors.New("while creating rabbitmq user publisher"))
 	}
 
 	// queue, err := userPublisher.CreateExchangeAndQueue("images", "resize", "images")
@@ -94,18 +94,18 @@ func (a *Application) Run() error {
 	redisRepository := NewRedisRepository(a.redisConn, userCachePrefix, userCacheDuration)
 	service := NewService(&repository, &redisRepository, a.logger, &userPublisher, SessionsGRPCClientFactory(a.logger, a.cfg, a.tracer))
 
-	mw := NewMiddlewareManager(a.logger, a.cfg, &service)
+	sessionMiddleware := NewSessionManager(a.logger, a.cfg, &service)
 
-	httpTransport := NewHTTPServer(usersGroup, &service, a.logger, validate, a.cfg, mw)
+	httpTransport := NewHTTPServer(v1Users, &service, a.logger, validate, a.cfg, &sessionMiddleware)
 	httpTransport.MapUserRoutes()
 
 	consumer := NewConsumer(a.logger, a.cfg, &service)
 	if err := consumer.Dial(); err != nil {
-		return errors.Wrap(err, "consumer.Dial")
+		return errors.Join(err, errors.New("while creating consumer"))
 	}
 	avatarChan, err := consumer.CreateExchangeAndQueue(UserExchange, AvatarsQueueName, AvatarsBindingKey)
 	if err != nil {
-		return errors.Wrap(err, "consumer.CreateExchangeAndQueue")
+		return errors.Join(err, errors.New("while consumer CreateExchangeAndQueue"))
 	}
 	defer avatarChan.Close()
 
@@ -118,7 +118,7 @@ func (a *Application) Run() error {
 	a.MapRoutes()
 
 	go func() {
-		a.logger.Infof("Server is listening on PORT: %s", a.cfg.HttpServer.Port)
+		a.logger.Infof("Server is listening on PORT: %s secured with %s - %s", a.cfg.HttpServer.Port, certFile, keyFile)
 		a.echo.Server.ReadTimeout = time.Second * a.cfg.HttpServer.ReadTimeout
 		a.echo.Server.WriteTimeout = time.Second * a.cfg.HttpServer.WriteTimeout
 		a.echo.Server.MaxHeaderBytes = maxHeaderBytes
@@ -140,7 +140,7 @@ func (a *Application) Run() error {
 	}
 	defer l.Close()
 
-	im := grpc_client.NewClientMiddleware(a.logger, a.cfg, a.tracer)
+	grpcClientMiddlewares := grpc_client.NewClientMiddleware(a.logger, a.cfg, a.tracer)
 
 	grpcServer := grpc.NewServer(
 		grpc.KeepaliveParams(
@@ -155,7 +155,7 @@ func (a *Application) Run() error {
 			grpcCtxTags.UnaryServerInterceptor(),
 			grpcPrometheus.UnaryServerInterceptor,
 			grpcRecovery.UnaryServerInterceptor(),
-			im.Logger,
+			grpcClientMiddlewares.Logger,
 		),
 	)
 
@@ -185,7 +185,7 @@ func (a *Application) Run() error {
 	a.logger.Info("Server Exited Properly")
 
 	if err := a.echo.Server.Shutdown(ctx); err != nil {
-		return errors.Wrap(err, "echo.Server.Shutdown")
+		return errors.Join(err, errors.New("while server shutdown"))
 	}
 
 	grpcServer.GracefulStop()
@@ -196,24 +196,45 @@ func (a *Application) Run() error {
 
 func (a *Application) MapRoutes() {
 	a.echo.GET("/swagger/*", echoSwagger.WrapHandler)
+
+	cwd, err := os.Getwd()
+	if err != nil {
+		panic("cannot read working dir")
+	}
+
+	cwd = strings.ReplaceAll(cwd, "/cmd", "/app")
+	dat, err := os.ReadFile(cwd + "/docs/swagger.json")
+	if err != nil {
+		panic("forgot to generate swagger.json?")
+	}
+	a.echo.GET("/swagger/doc.json", func(c echo.Context) error {
+		return c.String(http.StatusOK, string(dat))
+	})
+
 	a.echo.Use(middleware.Logger())
 	a.echo.Pre(middleware.HTTPSRedirect())
-	a.echo.Use(middleware.CORSWithConfig(middleware.CORSConfig{
-		AllowOrigins: []string{"*"},
-		AllowHeaders: []string{echo.HeaderOrigin, echo.HeaderContentType, echo.HeaderAccept, echo.HeaderXRequestID, csrfTokenHeader},
-	}))
-	a.echo.Use(middleware.RecoverWithConfig(middleware.RecoverConfig{
-		StackSize:         stackSize,
-		DisablePrintStack: true,
-		DisableStackAll:   true,
-	}))
-	a.echo.Use(middleware.RequestID())
-	a.echo.Use(middleware.GzipWithConfig(middleware.GzipConfig{
-		Level: gzipLevel,
-		Skipper: func(c echo.Context) bool {
-			return strings.Contains(c.Request().URL.Path, "swagger")
+	a.echo.Use(middleware.CORSWithConfig(
+		middleware.CORSConfig{
+			AllowOrigins: []string{"*"},
+			AllowHeaders: []string{echo.HeaderOrigin, echo.HeaderContentType, echo.HeaderAccept, echo.HeaderXRequestID, csrfTokenHeader},
 		},
-	}))
+	))
+	a.echo.Use(middleware.RecoverWithConfig(
+		middleware.RecoverConfig{
+			StackSize:         stackSize,
+			DisablePrintStack: true,
+			DisableStackAll:   true,
+		},
+	))
+	a.echo.Use(middleware.RequestID())
+	a.echo.Use(middleware.GzipWithConfig(
+		middleware.GzipConfig{
+			Level: gzipLevel,
+			Skipper: func(c echo.Context) bool {
+				return strings.Contains(c.Request().URL.Path, "swagger")
+			},
+		},
+	))
 	a.echo.Use(middleware.Secure())
 	a.echo.Use(middleware.BodyLimit(bodyLimit))
 }

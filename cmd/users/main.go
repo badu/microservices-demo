@@ -16,44 +16,42 @@ import (
 
 func main() {
 	configPath := config.GetConfigPath(os.Getenv("config"))
+
 	cfg, err := config.GetConfig(configPath)
 	if err != nil {
-		log.Fatalf("Loading config: %v", err)
+		log.Fatalf("failed loading config: %v", err)
 	}
 
 	appLogger := logger.NewApiLogger(cfg.Logger)
 	appLogger.InitLogger()
-	appLogger.Info("Starting user server")
-	appLogger.Infof(
-		"AppVersion: %s, LogLevel: %s, Mode: %s",
-		cfg.GRPCServer.AppVersion,
-		cfg.Logger.Level,
-		cfg.GRPCServer.Mode,
-	)
-	appLogger.Infof("Success parsed config: %#v", cfg.GRPCServer.AppVersion)
+	appLogger.Info("starting user server")
+	appLogger.Infof("LogLevel: %s, Mode: %s", cfg.Logger.Level, cfg.GRPCServer.Mode)
+	appLogger.Infof("succeeded parsing config (app version: %#v", cfg.GRPCServer.AppVersion)
 
 	pgxConn, err := postgres.NewPgxConn(cfg.Postgres)
 	if err != nil {
-		appLogger.Fatal("cannot connect to postgres", err)
+		appLogger.Fatal("cannot connect to postgres ", err)
 	}
 	defer pgxConn.Close()
 
 	redisClient := redis.NewRedisClient(cfg.Redis)
-	appLogger.Info("Redis connected")
+	appLogger.Info("connected to Redis")
 
 	tracer, closer, err := jaeger.InitJaeger(cfg.Jaeger)
 	if err != nil {
 		appLogger.Fatal("cannot create tracer", err)
 	}
-	appLogger.Info("Jaeger connected")
+	defer closer.Close()
+
+	appLogger.Info("connected to Jaeger")
 
 	opentracing.SetGlobalTracer(tracer)
-	defer closer.Close()
-	appLogger.Info("Opentracing connected")
+	appLogger.Info("connected to Opentracing")
 
-	appLogger.Infof("%-v", pgxConn.Stat())
-	appLogger.Infof("%-v", redisClient.PoolStats())
+	appLogger.Infof("%#v", pgxConn.Stat())
+	appLogger.Infof("%#v", redisClient.PoolStats())
 
-	s := users.NewApplication(&appLogger, cfg, redisClient, pgxConn, tracer)
-	appLogger.Fatal(s.Run())
+	app := users.NewApplication(&appLogger, cfg, redisClient, pgxConn, tracer)
+
+	appLogger.Fatal(app.Run())
 }

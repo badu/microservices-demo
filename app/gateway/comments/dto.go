@@ -30,7 +30,7 @@ type List struct {
 	HasMore    bool           `json:"hasMore"`
 }
 
-func FromProto(comment *comments.Comment) (*Comment, error) {
+func fromProto(comment *comments.Comment) (*Comment, error) {
 	commUUID, err := uuid.FromString(comment.CommentID)
 	if err != nil {
 		return nil, err
@@ -75,7 +75,7 @@ type CommentFull struct {
 	HotelID   uuid.UUID          `json:"hotel_id"`
 }
 
-func FullFromProto(comm *comments.CommentFull) (*CommentFull, error) {
+func fromProtoToFull(comm *comments.CommentFull) (*CommentFull, error) {
 	commUUID, err := uuid.FromString(comm.GetCommentID())
 	if err != nil {
 		return nil, err

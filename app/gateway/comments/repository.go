@@ -3,12 +3,12 @@ package comments
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"time"
 
 	"github.com/go-redis/redis/v8"
 	"github.com/opentracing/opentracing-go"
-	"github.com/pkg/errors"
 	uuid "github.com/satori/go.uuid"
 )
 
@@ -26,43 +26,43 @@ func NewRepository(redisConn *redis.Client) RepositoryImpl {
 }
 
 func (c *RepositoryImpl) CommentByID(ctx context.Context, commentID uuid.UUID) (*Comment, error) {
-	span, ctx := opentracing.StartSpanFromContext(ctx, "RepositoryImpl.CommentByID")
+	span, ctx := opentracing.StartSpanFromContext(ctx, "gateway_comments_repository.CommentByID")
 	defer span.Finish()
 
-	result, err := c.client.Get(ctx, c.createKey(commentID)).Bytes()
+	rawComment, err := c.client.Get(ctx, c.createKey(commentID)).Bytes()
 	if err != nil {
-		return nil, errors.Wrap(err, "RepositoryImpl.CommentByID.Get")
+		return nil, errors.Join(err, errors.New("repository redis client getting comment by id"))
 	}
 
-	var res Comment
-	if err := json.Unmarshal(result, &res); err != nil {
-		return nil, errors.Wrap(err, "json.Unmarshal")
+	var result Comment
+	if err := json.Unmarshal(rawComment, &result); err != nil {
+		return nil, errors.Join(err, errors.New("repository unmarshalling json from redis"))
 	}
-	return &res, nil
+	return &result, nil
 }
 
 func (c *RepositoryImpl) SetComment(ctx context.Context, comment *Comment) error {
-	span, ctx := opentracing.StartSpanFromContext(ctx, "RepositoryImpl.SetComment")
+	span, ctx := opentracing.StartSpanFromContext(ctx, "gateway_comments_repository.SetComment")
 	defer span.Finish()
 
-	commBytes, err := json.Marshal(comment)
+	jsonComment, err := json.Marshal(comment)
 	if err != nil {
-		return errors.Wrap(err, "RepositoryImpl.Marshal")
+		return errors.Join(err, errors.New("repository marshalling json for redis"))
 	}
 
-	if err := c.client.SetEX(ctx, c.createKey(comment.CommentID), string(commBytes), expiration).Err(); err != nil {
-		return errors.Wrap(err, "RepositoryImpl.SetComment.SetEX")
+	if err := c.client.SetEX(ctx, c.createKey(comment.CommentID), string(jsonComment), expiration).Err(); err != nil {
+		return errors.Join(err, errors.New("repository storing comment in redis"))
 	}
 
 	return nil
 }
 
 func (c *RepositoryImpl) DeleteComment(ctx context.Context, commentID uuid.UUID) error {
-	span, ctx := opentracing.StartSpanFromContext(ctx, "RepositoryImpl.DeleteComment")
+	span, ctx := opentracing.StartSpanFromContext(ctx, "gateway_comments_repository.DeleteComment")
 	defer span.Finish()
 
 	if err := c.client.Del(ctx, c.createKey(commentID)).Err(); err != nil {
-		return errors.Wrap(err, "RepositoryImpl.DeleteComment.Del")
+		return errors.Join(err, errors.New("repository deleting comment from redis"))
 	}
 
 	return nil

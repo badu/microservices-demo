@@ -2,7 +2,7 @@
 # Go migrate postgresql Hotels service
 # ==============================================================================
 
-hotels_dbname = hotels
+hotels_dbname = hotels_db
 hotels_port = 5435
 hotels_SSL_MODE = disable
 

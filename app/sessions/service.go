@@ -22,19 +22,19 @@ func NewService(sessRepo Repository) ServiceImpl {
 }
 
 func (s *ServiceImpl) CreateSession(ctx context.Context, userID uuid.UUID) (*SessionDO, error) {
-	span, ctx := opentracing.StartSpanFromContext(ctx, "ServiceImpl.CreateSession")
+	span, ctx := opentracing.StartSpanFromContext(ctx, "sessions_service.CreateSession")
 	defer span.Finish()
 	return s.repo.CreateSession(ctx, userID)
 }
 
 func (s *ServiceImpl) GetSessionByID(ctx context.Context, sessID string) (*SessionDO, error) {
-	span, ctx := opentracing.StartSpanFromContext(ctx, "ServiceImpl.GetSessionByID")
+	span, ctx := opentracing.StartSpanFromContext(ctx, "sessions_service.GetSessionByID")
 	defer span.Finish()
 	return s.repo.GetSessionByID(ctx, sessID)
 }
 
 func (s *ServiceImpl) DeleteSession(ctx context.Context, sessID string) error {
-	span, ctx := opentracing.StartSpanFromContext(ctx, "DeleteSession.GetSessionByID")
+	span, ctx := opentracing.StartSpanFromContext(ctx, "sessions_service.GetSessionByID")
 	defer span.Finish()
 	return s.repo.DeleteSession(ctx, sessID)
 }

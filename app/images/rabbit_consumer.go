@@ -2,10 +2,10 @@ package images
 
 import (
 	"context"
+	"errors"
 	"sync"
 
 	"github.com/opentracing/opentracing-go"
-	"github.com/pkg/errors"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/streadway/amqp"
 
@@ -64,7 +64,7 @@ func (c *ConsumerImpl) Dial() error {
 func (c *ConsumerImpl) CreateExchangeAndQueue(exchangeName, queueName, bindingKey string) (*amqp.Channel, error) {
 	ch, err := c.amqpConn.Channel()
 	if err != nil {
-		return nil, errors.Wrap(err, "Error amqpConn.Channel")
+		return nil, errors.Join(err, errors.New("amqpConn.Channel"))
 	}
 
 	c.logger.Infof("Declaring exchange: %s", exchangeName)
@@ -78,7 +78,7 @@ func (c *ConsumerImpl) CreateExchangeAndQueue(exchangeName, queueName, bindingKe
 		nil,
 	)
 	if err != nil {
-		return nil, errors.Wrap(err, "Error ch.ExchangeDeclare")
+		return nil, errors.Join(err, errors.New("ExchangeDeclare"))
 	}
 
 	queue, err := ch.QueueDeclare(
@@ -90,7 +90,7 @@ func (c *ConsumerImpl) CreateExchangeAndQueue(exchangeName, queueName, bindingKe
 		nil,
 	)
 	if err != nil {
-		return nil, errors.Wrap(err, "Error ch.QueueDeclare")
+		return nil, errors.Join(err, errors.New("QueueDeclare"))
 	}
 
 	c.logger.Infof("Declared queue, binding it to exchange: Queue: %v, messagesCount: %v, "+
@@ -110,7 +110,7 @@ func (c *ConsumerImpl) CreateExchangeAndQueue(exchangeName, queueName, bindingKe
 		nil,
 	)
 	if err != nil {
-		return nil, errors.Wrap(err, "Error ch.QueueBind")
+		return nil, errors.Join(err, errors.New("QueueBind"))
 	}
 
 	err = ch.Qos(
@@ -119,7 +119,7 @@ func (c *ConsumerImpl) CreateExchangeAndQueue(exchangeName, queueName, bindingKe
 		prefetchGlobal, // global
 	)
 	if err != nil {
-		return nil, errors.Wrap(err, "Error  ch.Qos")
+		return nil, errors.Join(err, errors.New("QOS"))
 	}
 
 	return ch, nil
@@ -134,7 +134,7 @@ func (c *ConsumerImpl) startConsume(
 ) error {
 	ch, err := c.amqpConn.Channel()
 	if err != nil {
-		return errors.Wrap(err, "c.amqpConn.Channel")
+		return errors.Join(err, errors.New("amqpConn.Channel"))
 	}
 
 	deliveries, err := ch.Consume(
@@ -147,7 +147,7 @@ func (c *ConsumerImpl) startConsume(
 		nil,
 	)
 	if err != nil {
-		return errors.Wrap(err, "ch.Consume")
+		return errors.Join(err, errors.New("Consume"))
 	}
 
 	wg := &sync.WaitGroup{}
@@ -211,7 +211,7 @@ func (c *ConsumerImpl) RunConsumers(ctx context.Context, cancel context.CancelFu
 func (c *ConsumerImpl) resizeWorker(ctx context.Context, wg *sync.WaitGroup, messages <-chan amqp.Delivery) {
 	defer wg.Done()
 	for delivery := range messages {
-		span, ctx := opentracing.StartSpanFromContext(ctx, "ConsumerImpl.resizeWorker")
+		span, ctx := opentracing.StartSpanFromContext(ctx, "rabbit_consumer.ResizeWorker")
 
 		c.logger.Infof("processDeliveries deliveryTag% v", delivery.DeliveryTag)
 
@@ -240,7 +240,7 @@ func (c *ConsumerImpl) resizeWorker(ctx context.Context, wg *sync.WaitGroup, mes
 func (c *ConsumerImpl) createImageWorker(ctx context.Context, wg *sync.WaitGroup, messages <-chan amqp.Delivery) {
 	defer wg.Done()
 	for delivery := range messages {
-		span, ctx := opentracing.StartSpanFromContext(ctx, "ConsumerImpl.createImageWorker")
+		span, ctx := opentracing.StartSpanFromContext(ctx, "rabbit_consumer.CreateImageWorker")
 
 		c.logger.Infof("processDeliveries deliveryTag% v", delivery.DeliveryTag)
 
@@ -271,7 +271,7 @@ func (c *ConsumerImpl) createImageWorker(ctx context.Context, wg *sync.WaitGroup
 func (c *ConsumerImpl) processHotelImageWorker(ctx context.Context, wg *sync.WaitGroup, messages <-chan amqp.Delivery) {
 	defer wg.Done()
 	for delivery := range messages {
-		span, ctx := opentracing.StartSpanFromContext(ctx, "ConsumerImpl.createImageWorker")
+		span, ctx := opentracing.StartSpanFromContext(ctx, "rabbit_consumer.CreateImageWorker")
 
 		c.logger.Infof("processDeliveries deliveryTag% v", delivery.DeliveryTag)
 

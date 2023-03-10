@@ -42,11 +42,11 @@ func main() {
 	if err != nil {
 		appLogger.Fatal("cannot create tracer", err)
 	}
-	appLogger.Info("Jaeger connected")
+	appLogger.Info("connected to Jaeger")
 
 	opentracing.SetGlobalTracer(tracer)
 	defer closer.Close()
-	appLogger.Info("Opentracing connected")
+	appLogger.Info("connected to Opentracing")
 
 	amqpConn, err := rabbitmq.NewRabbitMQConn(cfg.RabbitMQ)
 	if err != nil {
@@ -55,7 +55,7 @@ func main() {
 	defer amqpConn.Close()
 
 	s3 := images.NewS3Session(cfg)
-	appLogger.Infof("AWS S3 Connected : %v", s3.Client.APIVersion)
+	appLogger.Infof("connected to AWS S3 : %v", s3.Client.APIVersion)
 
 	app := images.NewApplication(&appLogger, cfg, tracer, pgxConn, s3)
 	appLogger.Fatal(app.Run())

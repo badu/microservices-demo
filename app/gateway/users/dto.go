@@ -21,7 +21,7 @@ type UserResponse struct {
 	UserID    uuid.UUID  `json:"user_id"`
 }
 
-func UserFromProto(user *users.User) (*UserResponse, error) {
+func fromProto(user *users.User) (*UserResponse, error) {
 	userUUID, err := uuid.FromString(user.GetUserID())
 	if err != nil {
 		return nil, err

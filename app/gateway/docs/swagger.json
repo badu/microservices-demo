@@ -1,479 +1,495 @@
 {
-  "swagger": "2.0",
-  "info": {
-    "contact": {}
-  },
-  "paths": {
-    "/comments": {
-      "post": {
-        "description": "Create new single comment",
-        "consumes": [
-          "application/json"
-        ],
-        "produces": [
-          "application/json"
-        ],
-        "tags": [
-          "Comments"
-        ],
-        "summary": "Create new comment",
-        "responses": {
-          "201": {
-            "description": "Created",
-            "schema": {
-              "$ref": "#/definitions/comments.Comment"
-            }
-          }
-        }
-      }
+    "swagger": "2.0",
+    "info": {
+        "contact": {}
     },
-    "/comments/hotel/{hotel_id}": {
-      "get": {
-        "description": "Get comments list by hotel uuid",
-        "consumes": [
-          "application/json"
-        ],
-        "produces": [
-          "application/json"
-        ],
-        "tags": [
-          "Comments"
-        ],
-        "summary": "Get comments by hotel id",
-        "parameters": [
-          {
-            "type": "string",
-            "description": "hotel uuid",
-            "name": "hotel_id",
-            "in": "query"
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "OK",
-            "schema": {
-              "$ref": "#/definitions/comments.List"
+    "paths": {
+        "/api/v1/comments": {
+            "post": {
+                "description": "Create new single comment",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Comments"
+                ],
+                "summary": "Create new comment",
+                "responses": {
+                    "201": {
+                        "description": "Created",
+                        "schema": {
+                            "$ref": "#/definitions/comments.Comment"
+                        }
+                    }
+                }
             }
-          }
+        },
+        "/api/v1/comments/hotel/{hotel_id}": {
+            "get": {
+                "description": "Get comments list by hotel uuid",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Comments"
+                ],
+                "summary": "Get comments by hotel id",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "hotel uuid",
+                        "name": "hotel_id",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/comments.List"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/comments/{comment_id}": {
+            "get": {
+                "description": "Get comment by uuid",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Comments"
+                ],
+                "summary": "Get comment by id",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "comment uuid",
+                        "name": "comment_id",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/comments.Comment"
+                        }
+                    }
+                }
+            },
+            "put": {
+                "description": "Update comment by uuid",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Comments"
+                ],
+                "summary": "Update comment by id",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "comment uuid",
+                        "name": "comment_id",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/comments.Comment"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/hotels": {
+            "get": {
+                "description": "Get hotels list with pagination using page and size query parameters",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Hotels"
+                ],
+                "summary": "Get hotels list new user",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "page number",
+                        "name": "page",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "number of elements",
+                        "name": "size",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/hotels.ListResult"
+                        }
+                    }
+                }
+            },
+            "post": {
+                "description": "Create new hotel instance",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Hotels"
+                ],
+                "summary": "Create new hotel",
+                "responses": {
+                    "201": {
+                        "description": "Created",
+                        "schema": {
+                            "$ref": "#/definitions/hotels.Hotel"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/hotels/{hotel_id}": {
+            "get": {
+                "description": "Get single hotel by uuid",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Hotels"
+                ],
+                "summary": "Get hotel by id",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "hotel uuid",
+                        "name": "hotel_id",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/hotels.Hotel"
+                        }
+                    }
+                }
+            },
+            "put": {
+                "description": "Update single hotel data",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Hotels"
+                ],
+                "summary": "Update hotel data",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "Hotel UUID",
+                        "name": "hotel_id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/hotels.Hotel"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/hotels/{id}/image": {
+            "put": {
+                "description": "Upload hotel logo image",
+                "consumes": [
+                    "multipart/form-data"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Hotels"
+                ],
+                "summary": "Upload hotel image",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "hotel uuid",
+                        "name": "hotel_id",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/hotels.Hotel"
+                        }
+                    }
+                }
+            }
         }
-      }
     },
-    "/comments/{comment_id}": {
-      "get": {
-        "description": "Get comment by uuid",
-        "consumes": [
-          "application/json"
-        ],
-        "produces": [
-          "application/json"
-        ],
-        "tags": [
-          "Comments"
-        ],
-        "summary": "Get comment by id",
-        "parameters": [
-          {
-            "type": "string",
-            "description": "comment uuid",
-            "name": "comment_id",
-            "in": "query"
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "OK",
-            "schema": {
-              "$ref": "#/definitions/comments.Comment"
+    "definitions": {
+        "comments.Comment": {
+            "type": "object",
+            "required": [
+                "message",
+                "rating"
+            ],
+            "properties": {
+                "comment_id": {
+                    "type": "string"
+                },
+                "created_at": {
+                    "type": "string"
+                },
+                "hotel_id": {
+                    "type": "string"
+                },
+                "message": {
+                    "type": "string",
+                    "maxLength": 500,
+                    "minLength": 5
+                },
+                "photos": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "rating": {
+                    "type": "number",
+                    "maximum": 10,
+                    "minimum": 0
+                },
+                "updated_at": {
+                    "type": "string"
+                },
+                "user_id": {
+                    "type": "string"
+                }
             }
-          }
-        }
-      },
-      "put": {
-        "description": "Update comment by uuid",
-        "consumes": [
-          "application/json"
-        ],
-        "produces": [
-          "application/json"
-        ],
-        "tags": [
-          "Comments"
-        ],
-        "summary": "Update comment by id",
-        "parameters": [
-          {
-            "type": "string",
-            "description": "comment uuid",
-            "name": "comment_id",
-            "in": "query"
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "OK",
-            "schema": {
-              "$ref": "#/definitions/comments.Comment"
+        },
+        "comments.CommentFull": {
+            "type": "object",
+            "properties": {
+                "comment_id": {
+                    "type": "string"
+                },
+                "createdAt": {
+                    "type": "string"
+                },
+                "hotel_id": {
+                    "type": "string"
+                },
+                "message": {
+                    "type": "string"
+                },
+                "photos": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "rating": {
+                    "type": "number"
+                },
+                "updatedAt": {
+                    "type": "string"
+                },
+                "user": {
+                    "$ref": "#/definitions/users.CommentUser"
+                }
             }
-          }
-        }
-      }
-    },
-    "/api/v1/hotels": {
-      "get": {
-        "description": "Get hotels list with pagination using page and size query parameters",
-        "consumes": [
-          "application/json"
-        ],
-        "produces": [
-          "application/json"
-        ],
-        "tags": [
-          "Hotels"
-        ],
-        "summary": "Get hotels list new user",
-        "parameters": [
-          {
-            "type": "integer",
-            "description": "page number",
-            "name": "page",
-            "in": "query"
-          },
-          {
-            "type": "integer",
-            "description": "number of elements",
-            "name": "size",
-            "in": "query"
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "OK",
-            "schema": {
-              "$ref": "#/definitions/hotels.ListResult"
+        },
+        "comments.List": {
+            "type": "object",
+            "properties": {
+                "comments": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/comments.CommentFull"
+                    }
+                },
+                "hasMore": {
+                    "type": "boolean"
+                },
+                "page": {
+                    "type": "integer"
+                },
+                "size": {
+                    "type": "integer"
+                },
+                "totalCount": {
+                    "type": "integer"
+                },
+                "totalPages": {
+                    "type": "integer"
+                }
             }
-          }
-        }
-      },
-      "post": {
-        "description": "Create new hotel instance",
-        "consumes": [
-          "application/json"
-        ],
-        "produces": [
-          "application/json"
-        ],
-        "tags": [
-          "Hotels"
-        ],
-        "summary": "Create new hotel",
-        "responses": {
-          "201": {
-            "description": "Created",
-            "schema": {
-              "$ref": "#/definitions/hotels.Hotel"
+        },
+        "hotels.Hotel": {
+            "type": "object",
+            "required": [
+                "city",
+                "country",
+                "description",
+                "email",
+                "location",
+                "name",
+                "rating"
+            ],
+            "properties": {
+                "city": {
+                    "type": "string",
+                    "maxLength": 25,
+                    "minLength": 3
+                },
+                "comments_count": {
+                    "type": "integer"
+                },
+                "country": {
+                    "type": "string",
+                    "maxLength": 25,
+                    "minLength": 3
+                },
+                "created_at": {
+                    "type": "string"
+                },
+                "description": {
+                    "type": "string",
+                    "maxLength": 250,
+                    "minLength": 10
+                },
+                "email": {
+                    "type": "string"
+                },
+                "hotel_id": {
+                    "type": "string"
+                },
+                "image": {
+                    "type": "string"
+                },
+                "latitude": {
+                    "type": "number"
+                },
+                "location": {
+                    "type": "string",
+                    "maxLength": 250,
+                    "minLength": 10
+                },
+                "longitude": {
+                    "type": "number"
+                },
+                "name": {
+                    "type": "string",
+                    "maxLength": 25,
+                    "minLength": 3
+                },
+                "photos": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "rating": {
+                    "type": "number",
+                    "maximum": 10,
+                    "minimum": 0
+                },
+                "updated_at": {
+                    "type": "string"
+                }
             }
-          }
-        }
-      }
-    },
-    "/hotels/{hotel_id}": {
-      "get": {
-        "description": "Get single hotel by uuid",
-        "consumes": [
-          "application/json"
-        ],
-        "produces": [
-          "application/json"
-        ],
-        "tags": [
-          "Hotels"
-        ],
-        "summary": "Get hotel by id",
-        "parameters": [
-          {
-            "type": "string",
-            "description": "hotel uuid",
-            "name": "hotel_id",
-            "in": "query"
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "OK",
-            "schema": {
-              "$ref": "#/definitions/hotels.Hotel"
+        },
+        "hotels.ListResult": {
+            "type": "object",
+            "properties": {
+                "hasMore": {
+                    "type": "boolean"
+                },
+                "hotels": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/hotels.Hotel"
+                    }
+                },
+                "page": {
+                    "type": "integer"
+                },
+                "size": {
+                    "type": "integer"
+                },
+                "totalCount": {
+                    "type": "integer"
+                },
+                "totalPages": {
+                    "type": "integer"
+                }
             }
-          }
-        }
-      },
-      "put": {
-        "description": "Update single hotel data",
-        "consumes": [
-          "application/json"
-        ],
-        "produces": [
-          "application/json"
-        ],
-        "tags": [
-          "Hotels"
-        ],
-        "summary": "Update hotel data",
-        "parameters": [
-          {
-            "type": "integer",
-            "description": "Hotel UUID",
-            "name": "hotel_id",
-            "in": "path",
-            "required": true
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "OK",
-            "schema": {
-              "$ref": "#/definitions/hotels.Hotel"
+        },
+        "users.CommentUser": {
+            "type": "object",
+            "properties": {
+                "avatar": {
+                    "type": "string"
+                },
+                "email": {
+                    "type": "string"
+                },
+                "firstName": {
+                    "type": "string"
+                },
+                "lastName": {
+                    "type": "string"
+                },
+                "role": {
+                    "type": "string"
+                },
+                "userId": {
+                    "type": "string"
+                }
             }
-          }
         }
-      }
-    },
-    "/hotels/{id}/image": {
-      "put": {
-        "description": "Upload hotel logo image",
-        "consumes": [
-          "multipart/form-data"
-        ],
-        "produces": [
-          "application/json"
-        ],
-        "tags": [
-          "Hotels"
-        ],
-        "summary": "Upload hotel image",
-        "parameters": [
-          {
-            "type": "string",
-            "description": "hotel uuid",
-            "name": "hotel_id",
-            "in": "query"
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "OK",
-            "schema": {
-              "$ref": "#/definitions/hotels.Hotel"
-            }
-          }
-        }
-      }
     }
-  },
-  "definitions": {
-    "comments.Comment": {
-      "type": "object",
-      "required": [
-        "message",
-        "rating"
-      ],
-      "properties": {
-        "comment_id": {
-          "type": "string"
-        },
-        "created_at": {
-          "type": "string"
-        },
-        "hotel_id": {
-          "type": "string"
-        },
-        "message": {
-          "type": "string"
-        },
-        "photos": {
-          "type": "array",
-          "items": {
-            "type": "string"
-          }
-        },
-        "rating": {
-          "type": "number"
-        },
-        "updated_at": {
-          "type": "string"
-        },
-        "user_id": {
-          "type": "string"
-        }
-      }
-    },
-    "comments.CommentFull": {
-      "type": "object",
-      "properties": {
-        "comment_id": {
-          "type": "string"
-        },
-        "createdAt": {
-          "type": "string"
-        },
-        "hotel_id": {
-          "type": "string"
-        },
-        "message": {
-          "type": "string"
-        },
-        "photos": {
-          "type": "array",
-          "items": {
-            "type": "string"
-          }
-        },
-        "rating": {
-          "type": "number"
-        },
-        "updatedAt": {
-          "type": "string"
-        },
-        "user": {
-          "$ref": "#/definitions/users.CommentUser"
-        }
-      }
-    },
-    "comments.List": {
-      "type": "object",
-      "properties": {
-        "comments": {
-          "type": "array",
-          "items": {
-            "$ref": "#/definitions/comments.CommentFull"
-          }
-        },
-        "hasMore": {
-          "type": "boolean"
-        },
-        "page": {
-          "type": "integer"
-        },
-        "size": {
-          "type": "integer"
-        },
-        "totalCount": {
-          "type": "integer"
-        },
-        "totalPages": {
-          "type": "integer"
-        }
-      }
-    },
-    "hotels.Hotel": {
-      "type": "object",
-      "required": [
-        "city",
-        "country",
-        "description",
-        "email",
-        "location",
-        "name",
-        "rating"
-      ],
-      "properties": {
-        "city": {
-          "type": "string"
-        },
-        "comments_count": {
-          "type": "integer"
-        },
-        "country": {
-          "type": "string"
-        },
-        "created_at": {
-          "type": "string"
-        },
-        "description": {
-          "type": "string"
-        },
-        "email": {
-          "type": "string"
-        },
-        "hotel_id": {
-          "type": "string"
-        },
-        "image": {
-          "type": "string"
-        },
-        "latitude": {
-          "type": "number"
-        },
-        "location": {
-          "type": "string"
-        },
-        "longitude": {
-          "type": "number"
-        },
-        "name": {
-          "type": "string"
-        },
-        "photos": {
-          "type": "array",
-          "items": {
-            "type": "string"
-          }
-        },
-        "rating": {
-          "type": "number"
-        },
-        "updated_at": {
-          "type": "string"
-        }
-      }
-    },
-    "hotels.ListResult": {
-      "type": "object",
-      "properties": {
-        "hasMore": {
-          "type": "boolean"
-        },
-        "hotels": {
-          "type": "array",
-          "items": {
-            "$ref": "#/definitions/hotels.Hotel"
-          }
-        },
-        "page": {
-          "type": "integer"
-        },
-        "size": {
-          "type": "integer"
-        },
-        "totalCount": {
-          "type": "integer"
-        },
-        "totalPages": {
-          "type": "integer"
-        }
-      }
-    },
-    "users.CommentUser": {
-      "type": "object",
-      "properties": {
-        "avatar": {
-          "type": "string"
-        },
-        "email": {
-          "type": "string"
-        },
-        "firstName": {
-          "type": "string"
-        },
-        "lastName": {
-          "type": "string"
-        },
-        "role": {
-          "type": "string"
-        },
-        "userId": {
-          "type": "string"
-        }
-      }
-    }
-  }
 }

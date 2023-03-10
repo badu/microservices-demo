@@ -32,8 +32,8 @@ func NewServer(service Service, logger logger.Logger, validate *validator.Valida
 	return GRPCServer{service: service, logger: logger, validate: validate}
 }
 
-func (h *GRPCServer) CreateHotel(ctx context.Context, req *CreateHotelReq) (*CreateHotelRes, error) {
-	span, ctx := opentracing.StartSpanFromContext(ctx, "GRPCServer.CreateHotel")
+func (h *GRPCServer) CreateHotel(ctx context.Context, req *CreateHotelRequest) (*CreateHotelResponse, error) {
+	span, ctx := opentracing.StartSpanFromContext(ctx, "hotels_grpc_server.CreateHotel")
 	defer span.Finish()
 
 	hotel := &HotelDO{
@@ -62,11 +62,11 @@ func (h *GRPCServer) CreateHotel(ctx context.Context, req *CreateHotelReq) (*Cre
 		return nil, grpcErrors.ErrorResponse(err, "GRPCServer.GetByID")
 	}
 
-	return &CreateHotelRes{Hotel: createdHotel.ToProto()}, nil
+	return &CreateHotelResponse{Hotel: createdHotel.ToProto()}, nil
 }
 
-func (h *GRPCServer) UpdateHotel(ctx context.Context, req *UpdateHotelReq) (*UpdateHotelRes, error) {
-	span, ctx := opentracing.StartSpanFromContext(ctx, "GRPCServer.UpdateHotel")
+func (h *GRPCServer) UpdateHotel(ctx context.Context, req *UpdateHotelRequest) (*UpdateHotelResponse, error) {
+	span, ctx := opentracing.StartSpanFromContext(ctx, "hotels_grpc_server.UpdateHotel")
 	defer span.Finish()
 
 	hotelUUID, err := uuid.FromString(req.GetHotelID())
@@ -102,11 +102,11 @@ func (h *GRPCServer) UpdateHotel(ctx context.Context, req *UpdateHotelReq) (*Upd
 		return nil, grpcErrors.ErrorResponse(err, err.Error())
 	}
 
-	return &UpdateHotelRes{Hotel: updatedHotel.ToProto()}, err
+	return &UpdateHotelResponse{Hotel: updatedHotel.ToProto()}, err
 }
 
-func (h *GRPCServer) GetHotelByID(ctx context.Context, req *GetByIDReq) (*GetByIDRes, error) {
-	span, ctx := opentracing.StartSpanFromContext(ctx, "GRPCServer.GetHotelByID")
+func (h *GRPCServer) GetHotelByID(ctx context.Context, req *GetByIDRequest) (*GetByIDResponse, error) {
+	span, ctx := opentracing.StartSpanFromContext(ctx, "hotels_grpc_server.GetHotelByID")
 	defer span.Finish()
 
 	hotelUUID, err := uuid.FromString(req.GetHotelID())
@@ -121,11 +121,11 @@ func (h *GRPCServer) GetHotelByID(ctx context.Context, req *GetByIDReq) (*GetByI
 		return nil, grpcErrors.ErrorResponse(err, "service.GetHotelByID")
 	}
 
-	return &GetByIDRes{Hotel: hotel.ToProto()}, nil
+	return &GetByIDResponse{Hotel: hotel.ToProto()}, nil
 }
 
-func (h *GRPCServer) GetHotels(ctx context.Context, req *GetHotelsReq) (*GetHotelsRes, error) {
-	span, ctx := opentracing.StartSpanFromContext(ctx, "GRPCServer.GetHotels")
+func (h *GRPCServer) GetHotels(ctx context.Context, req *GetHotelsRequest) (*GetHotelsResponse, error) {
+	span, ctx := opentracing.StartSpanFromContext(ctx, "hotels_grpc_server.GetHotels")
 	defer span.Finish()
 
 	query := pagination.NewPaginationQuery(int(req.GetSize()), int(req.GetPage()))
@@ -136,7 +136,7 @@ func (h *GRPCServer) GetHotels(ctx context.Context, req *GetHotelsReq) (*GetHote
 		return nil, grpcErrors.ErrorResponse(err, "service.GetHotels")
 	}
 
-	return &GetHotelsRes{
+	return &GetHotelsResponse{
 		TotalCount: int64(hotelsList.TotalCount),
 		TotalPages: int64(hotelsList.TotalPages),
 		Page:       int64(hotelsList.Page),
@@ -146,8 +146,8 @@ func (h *GRPCServer) GetHotels(ctx context.Context, req *GetHotelsReq) (*GetHote
 	}, nil
 }
 
-func (h *GRPCServer) UploadImage(ctx context.Context, req *UploadImageReq) (*UploadImageRes, error) {
-	span, ctx := opentracing.StartSpanFromContext(ctx, "GRPCServer.UploadImage")
+func (h *GRPCServer) UploadImage(ctx context.Context, req *UploadImageRequest) (*UploadImageResponse, error) {
+	span, ctx := opentracing.StartSpanFromContext(ctx, "hotels_grpc_server.UploadImage")
 	defer span.Finish()
 
 	hotelUUID, err := uuid.FromString(req.GetHotelID())
@@ -165,5 +165,5 @@ func (h *GRPCServer) UploadImage(ctx context.Context, req *UploadImageReq) (*Upl
 		return nil, grpcErrors.ErrorResponse(err, "service.UploadImage")
 	}
 
-	return &UploadImageRes{HotelID: hotelUUID.String()}, nil
+	return &UploadImageResponse{HotelID: hotelUUID.String()}, nil
 }

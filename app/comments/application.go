@@ -2,6 +2,7 @@ package comments
 
 import (
 	"context"
+	"errors"
 	"net"
 	"os"
 	"os/signal"
@@ -17,7 +18,6 @@ import (
 	"github.com/jackc/pgx/v4/pgxpool"
 	"github.com/labstack/echo/v4"
 	"github.com/opentracing/opentracing-go"
-	"github.com/pkg/errors"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/keepalive"
@@ -46,9 +46,9 @@ func UsersGRPCClientFactory(
 	cfg *config.Config,
 	tracer opentracing.Tracer,
 ) func(ctx context.Context) (*grpc.ClientConn, users.UserServiceClient, error) {
-	manager := grpc_client.NewClientMiddleware(logger, cfg, tracer)
+	commonMW := grpc_client.NewClientMiddleware(logger, cfg, tracer)
 	return func(ctx context.Context) (*grpc.ClientConn, users.UserServiceClient, error) {
-		conn, err := grpc_client.NewGRPCClientServiceConn(ctx, manager, cfg.GRPC.UserServicePort)
+		conn, err := grpc_client.NewGRPCClientServiceConn(ctx, commonMW, cfg.GRPC.UserServicePort)
 		if err != nil {
 			return nil, nil, err
 		}
@@ -66,11 +66,11 @@ func (a *Application) Run() error {
 	service := NewService(&repository, a.logger, UsersGRPCClientFactory(a.logger, a.cfg, a.tracer))
 	server := NewServer(&service, a.logger, a.cfg, validate)
 
-	l, err := net.Listen("tcp", a.cfg.GRPCServer.Port)
+	listener, err := net.Listen("tcp", a.cfg.GRPCServer.Port)
 	if err != nil {
-		return errors.Wrap(err, "net.Listen")
+		return errors.Join(err, errors.New("comments application listener"))
 	}
-	defer l.Close()
+	defer listener.Close()
 
 	go func() {
 		router := echo.New()
@@ -105,7 +105,7 @@ func (a *Application) Run() error {
 
 	go func() {
 		a.logger.Infof("GRPC Server is listening on port: %v", a.cfg.GRPCServer.Port)
-		a.logger.Fatal(grpcServer.Serve(l))
+		a.logger.Fatal(grpcServer.Serve(listener))
 	}()
 
 	if a.cfg.ProductionMode() {
@@ -122,14 +122,12 @@ func (a *Application) Run() error {
 		a.logger.Errorf("ctx.Done: %v", done)
 	}
 
-	a.logger.Info("Server Exited Properly")
-
 	if err := a.e.Server.Shutdown(ctx); err != nil {
-		return errors.Wrap(err, "echo.Server.Shutdown")
+		return errors.Join(err, errors.New("comments application server shutdown"))
 	}
 
 	grpcServer.GracefulStop()
-	a.logger.Info("Server Exited Properly")
+	a.logger.Info("grpc server shutdown correctly")
 
 	return nil
 }

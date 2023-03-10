@@ -3,12 +3,12 @@ package sessions
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"time"
 
 	"github.com/go-redis/redis/v8"
 	"github.com/opentracing/opentracing-go"
-	"github.com/pkg/errors"
 	uuid "github.com/satori/go.uuid"
 )
 
@@ -23,7 +23,7 @@ func NewRepository(redis *redis.Client, prefix string, expiration time.Duration)
 }
 
 func (s *RepositoryImpl) CreateSession(ctx context.Context, userID uuid.UUID) (*SessionDO, error) {
-	span, ctx := opentracing.StartSpanFromContext(ctx, "RepositoryImpl.CreateSession")
+	span, ctx := opentracing.StartSpanFromContext(ctx, "sessions_repository.CreateSession")
 	defer span.Finish()
 
 	sess := &SessionDO{
@@ -33,38 +33,38 @@ func (s *RepositoryImpl) CreateSession(ctx context.Context, userID uuid.UUID) (*
 
 	sessBytes, err := json.Marshal(&sess)
 	if err != nil {
-		return nil, errors.Wrap(err, "sessionRepo.CreateSession.json.Marshal")
+		return nil, errors.Join(err, errors.New("while marshalling json"))
 	}
 
 	if err := s.redis.SetEX(ctx, s.createKey(sess.SessionID), string(sessBytes), s.expiration).Err(); err != nil {
-		return nil, errors.Wrap(err, "sessionRepo.CreateSession.redis.SetEX")
+		return nil, errors.Join(err, errors.New("while saving to redis"))
 	}
 
 	return sess, nil
 }
 
 func (s *RepositoryImpl) GetSessionByID(ctx context.Context, sessID string) (*SessionDO, error) {
-	span, ctx := opentracing.StartSpanFromContext(ctx, "RepositoryImpl.GetSessionByID")
+	span, ctx := opentracing.StartSpanFromContext(ctx, "sessions_repository.GetSessionByID")
 	defer span.Finish()
 
 	result, err := s.redis.Get(ctx, s.createKey(sessID)).Result()
 	if err != nil {
-		return nil, errors.Wrap(err, "sessionRepo.GetSessionByID.redis.Get")
+		return nil, errors.Join(err, errors.New("while reading from redis"))
 	}
 
 	var sess SessionDO
 	if err := json.Unmarshal([]byte(result), &sess); err != nil {
-		return nil, errors.Wrap(err, "sessionRepo.GetSessionByID.json.Unmarshal")
+		return nil, errors.Join(err, errors.New("while unmarshalling json"))
 	}
 	return &sess, nil
 }
 
 func (s *RepositoryImpl) DeleteSession(ctx context.Context, sessID string) error {
-	span, ctx := opentracing.StartSpanFromContext(ctx, "RepositoryImpl.DeleteSession")
+	span, ctx := opentracing.StartSpanFromContext(ctx, "sessions_repository.DeleteSession")
 	defer span.Finish()
 
 	if err := s.redis.Del(ctx, s.createKey(sessID)).Err(); err != nil {
-		return errors.Wrap(err, "sessionRepo.DeleteSession.redis.Del")
+		return errors.Join(err, errors.New("while deleting from redis"))
 	}
 	return nil
 }

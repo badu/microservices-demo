@@ -53,11 +53,10 @@ func NewServer(
 // @Accept json
 // @Produce json
 // @Success 201 {object} Hotel
-// @Router /hotels [post]
-// @BasePath /api/v1
+// @Router /api/v1/hotels [post]
 func (h *ServerImpl) CreateHotel() echo.HandlerFunc {
 	return func(c echo.Context) error {
-		span, ctx := opentracing.StartSpanFromContext(c.Request().Context(), "ServerImpl.CreateHotel")
+		span, ctx := opentracing.StartSpanFromContext(c.Request().Context(), "gateway_hotels_http_server.CreateHotel")
 		defer span.Finish()
 
 		var hotelReq Hotel
@@ -89,11 +88,10 @@ func (h *ServerImpl) CreateHotel() echo.HandlerFunc {
 // @Produce json
 // @Param hotel_id path int true "Hotel UUID"
 // @Success 200 {object} Hotel
-// @Router /hotels/{hotel_id} [put]
-// @BasePath /api/v1
+// @Router /api/v1/hotels/{hotel_id} [put]
 func (h *ServerImpl) UpdateHotel() echo.HandlerFunc {
 	return func(c echo.Context) error {
-		span, ctx := opentracing.StartSpanFromContext(c.Request().Context(), "ServerImpl.UpdateHotel")
+		span, ctx := opentracing.StartSpanFromContext(c.Request().Context(), "gateway_hotels_http_server.UpdateHotel")
 		defer span.Finish()
 
 		hotelUUID, err := uuid.FromString(c.QueryParam("hotel_id"))
@@ -132,11 +130,10 @@ func (h *ServerImpl) UpdateHotel() echo.HandlerFunc {
 // @Produce json
 // @Param hotel_id query string false "hotel uuid"
 // @Success 200 {object} Hotel
-// @Router /hotels/{hotel_id} [get]
-// @BasePath /api/v1
+// @Router /api/v1/hotels/{hotel_id} [get]
 func (h *ServerImpl) GetHotelByID() echo.HandlerFunc {
 	return func(c echo.Context) error {
-		span, ctx := opentracing.StartSpanFromContext(c.Request().Context(), "ServerImpl.GetHotelByID")
+		span, ctx := opentracing.StartSpanFromContext(c.Request().Context(), "gateway_hotels_http_server.GetHotelByID")
 		defer span.Finish()
 
 		hotelUUID, err := uuid.FromString(c.QueryParam("hotel_id"))
@@ -164,11 +161,10 @@ func (h *ServerImpl) GetHotelByID() echo.HandlerFunc {
 // @Param page query int false "page number"
 // @Param size query int false "number of elements"
 // @Success 200 {object} ListResult
-// @Router /hotels [get]
-// @BasePath /api/v1
+// @Router /api/v1/hotels [get]
 func (h *ServerImpl) GetHotels() echo.HandlerFunc {
 	return func(c echo.Context) error {
-		span, ctx := opentracing.StartSpanFromContext(c.Request().Context(), "ServerImpl.GetHotels")
+		span, ctx := opentracing.StartSpanFromContext(c.Request().Context(), "gateway_hotels_http_server.GetHotels")
 		defer span.Finish()
 
 		page, err := strconv.Atoi(c.QueryParam("page"))
@@ -200,14 +196,13 @@ func (h *ServerImpl) GetHotels() echo.HandlerFunc {
 // @Produce json
 // @Param hotel_id query string false "hotel uuid"
 // @Success 200 {object} Hotel
-// @Router /hotels/{id}/image [put]
-// @BasePath /api/v1
+// @Router /api/v1/hotels/{id}/image [put]
 func (h *ServerImpl) UploadImage() echo.HandlerFunc {
 	bufferPool := &sync.Pool{New: func() interface{} {
 		return &bytes.Buffer{}
 	}}
 	return func(c echo.Context) error {
-		span, ctx := opentracing.StartSpanFromContext(c.Request().Context(), "ServerImpl.UploadImage")
+		span, ctx := opentracing.StartSpanFromContext(c.Request().Context(), "gateway_hotels_http_server.UploadImage")
 		defer span.Finish()
 
 		hotelUUID, err := uuid.FromString(c.QueryParam("hotel_id"))

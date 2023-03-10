@@ -3,12 +3,12 @@ package hotels
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"time"
 
 	"github.com/go-redis/redis/v8"
 	"github.com/opentracing/opentracing-go"
-	"github.com/pkg/errors"
 	uuid "github.com/satori/go.uuid"
 )
 
@@ -18,52 +18,52 @@ const (
 )
 
 type RepositoryImpl struct {
-	redisConn *redis.Client
+	client *redis.Client
 }
 
-func NewRepository(redisConn *redis.Client) RepositoryImpl {
-	return RepositoryImpl{redisConn: redisConn}
+func NewRepository(redisClient *redis.Client) RepositoryImpl {
+	return RepositoryImpl{client: redisClient}
 }
 
 func (h *RepositoryImpl) GetHotelByID(ctx context.Context, hotelID uuid.UUID) (*Hotel, error) {
-	span, ctx := opentracing.StartSpanFromContext(ctx, "RepositoryImpl.GetHotelByID")
+	span, ctx := opentracing.StartSpanFromContext(ctx, "gateway_hotels_repository.GetHotelByID")
 	defer span.Finish()
 
-	result, err := h.redisConn.Get(ctx, h.createKey(hotelID)).Bytes()
+	rawJson, err := h.client.Get(ctx, h.createKey(hotelID)).Bytes()
 	if err != nil {
-		return nil, errors.Wrap(err, "RepositoryImpl.GetHotelByID")
+		return nil, errors.Join(err, errors.New("getting hotel from redis in repository"))
 	}
 
-	var res Hotel
-	if err := json.Unmarshal(result, &res); err != nil {
-		return nil, errors.Wrap(err, "json.Unmarshal")
+	var result Hotel
+	if err := json.Unmarshal(rawJson, &result); err != nil {
+		return nil, errors.Join(err, errors.New("unmarshalling hotel from redis in repository"))
 	}
 
-	return &res, nil
+	return &result, nil
 }
 
 func (h *RepositoryImpl) SetHotel(ctx context.Context, hotel *Hotel) error {
-	span, ctx := opentracing.StartSpanFromContext(ctx, "RepositoryImpl.SetHotel")
+	span, ctx := opentracing.StartSpanFromContext(ctx, "gateway_hotels_repository.SetHotel")
 	defer span.Finish()
 
-	hotelBytes, err := json.Marshal(hotel)
+	rawJson, err := json.Marshal(hotel)
 	if err != nil {
-		return errors.Wrap(err, "RepositoryImpl.Marshal")
+		return errors.Join(err, errors.New("marshalling hotel to json for redis in repository"))
 	}
 
-	if err := h.redisConn.SetEX(ctx, h.createKey(hotel.HotelID), string(hotelBytes), expiration).Err(); err != nil {
-		return errors.Wrap(err, "RepositoryImpl.SetEX")
+	if err := h.client.SetEX(ctx, h.createKey(hotel.HotelID), string(rawJson), expiration).Err(); err != nil {
+		return errors.Join(err, errors.New("saving hotel as json to redis in repository"))
 	}
 
 	return nil
 }
 
 func (h *RepositoryImpl) DeleteHotel(ctx context.Context, hotelID uuid.UUID) error {
-	span, ctx := opentracing.StartSpanFromContext(ctx, "RepositoryImpl.DeleteHotel")
+	span, ctx := opentracing.StartSpanFromContext(ctx, "gateway_hotels_repository.DeleteHotel")
 	defer span.Finish()
 
-	if err := h.redisConn.Del(ctx, h.createKey(hotelID)).Err(); err != nil {
-		return errors.Wrap(err, "RepositoryImpl.DeleteHotel.Del")
+	if err := h.client.Del(ctx, h.createKey(hotelID)).Err(); err != nil {
+		return errors.Join(err, errors.New("deleting hotel from redis in repository"))
 	}
 
 	return nil
