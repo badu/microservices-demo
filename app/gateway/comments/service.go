@@ -4,12 +4,13 @@ import (
 	"context"
 	"errors"
 
+	"github.com/badu/bus"
 	"github.com/go-redis/redis/v8"
 	"github.com/opentracing/opentracing-go"
 	uuid "github.com/satori/go.uuid"
-	"google.golang.org/grpc"
 
 	"github.com/badu/microservices-demo/app/comments"
+	"github.com/badu/microservices-demo/app/gateway/events"
 	"github.com/badu/microservices-demo/app/gateway/users"
 	httpErrors "github.com/badu/microservices-demo/pkg/http_errors"
 	"github.com/badu/microservices-demo/pkg/logger"
@@ -22,20 +23,17 @@ type Repository interface {
 }
 
 type ServiceImpl struct {
-	logger            logger.Logger
-	repository        Repository
-	grpcClientFactory func(ctx context.Context) (*grpc.ClientConn, comments.CommentsServiceClient, error)
+	logger     logger.Logger
+	repository Repository
 }
 
 func NewService(
 	logger logger.Logger,
 	repository Repository,
-	grpcClientFactory func(ctx context.Context) (*grpc.ClientConn, comments.CommentsServiceClient, error),
 ) ServiceImpl {
 	return ServiceImpl{
-		logger:            logger,
-		repository:        repository,
-		grpcClientFactory: grpcClientFactory,
+		logger:     logger,
+		repository: repository,
 	}
 }
 
@@ -48,13 +46,16 @@ func (s *ServiceImpl) CreateComment(ctx context.Context, comment *Comment) (*Com
 		return nil, errors.Join(httpErrors.Unauthorized, errors.New("context unknown user in service"))
 	}
 
-	conn, client, err := s.grpcClientFactory(ctx)
-	if err != nil {
-		return nil, errors.Join(err, errors.New("grpc client creation in service"))
+	event := events.NewRequireCommentsGRPCClient(ctx)
+	bus.Pub(event)
+	event.WaitReply()
+	if event.Err != nil {
+		return nil, event.Err
 	}
-	defer conn.Close()
 
-	commentRes, err := client.CreateComment(
+	defer event.Conn.Close()
+
+	commentRes, err := event.Client.CreateComment(
 		ctx,
 		&comments.CreateCommentRequest{
 			HotelID: comment.HotelID.String(),
@@ -90,13 +91,16 @@ func (s *ServiceImpl) GetCommByID(ctx context.Context, commentID uuid.UUID) (*Co
 		return cacheComm, nil
 	}
 
-	conn, client, err := s.grpcClientFactory(ctx)
-	if err != nil {
-		return nil, errors.Join(err, errors.New("grpc client creation in service"))
+	event := events.NewRequireCommentsGRPCClient(ctx)
+	bus.Pub(event)
+	event.WaitReply()
+	if event.Err != nil {
+		return nil, event.Err
 	}
-	defer conn.Close()
 
-	commByID, err := client.GetCommByID(ctx, &comments.GetCommentByIDRequest{CommentID: commentID.String()})
+	defer event.Conn.Close()
+
+	commByID, err := event.Client.GetCommByID(ctx, &comments.GetCommentByIDRequest{CommentID: commentID.String()})
 	if err != nil {
 		return nil, errors.Join(err, errors.New("grpc client responded with error in service"))
 	}
@@ -126,13 +130,16 @@ func (s *ServiceImpl) UpdateComment(ctx context.Context, comment *Comment) (*Com
 		return nil, errors.Join(httpErrors.WrongCredentials, errors.New("user is not owner of the comment in service"))
 	}
 
-	conn, client, err := s.grpcClientFactory(ctx)
-	if err != nil {
-		return nil, errors.Join(err, errors.New("grpc client creation in service"))
+	event := events.NewRequireCommentsGRPCClient(ctx)
+	bus.Pub(event)
+	event.WaitReply()
+	if event.Err != nil {
+		return nil, event.Err
 	}
-	defer conn.Close()
 
-	commRes, err := client.UpdateComment(ctx, &comments.UpdateCommentRequest{
+	defer event.Conn.Close()
+
+	commRes, err := event.Client.UpdateComment(ctx, &comments.UpdateCommentRequest{
 		CommentID: comment.CommentID.String(),
 		Message:   comment.Message,
 		Photos:    comment.Photos,
@@ -158,13 +165,16 @@ func (s *ServiceImpl) GetByHotelID(ctx context.Context, hotelID uuid.UUID, page,
 	span, ctx := opentracing.StartSpanFromContext(ctx, "gateway_comments_service.GetByHotelID")
 	defer span.Finish()
 
-	conn, client, err := s.grpcClientFactory(ctx)
-	if err != nil {
-		return nil, errors.Join(err, errors.New("grpc client creation in service"))
+	event := events.NewRequireCommentsGRPCClient(ctx)
+	bus.Pub(event)
+	event.WaitReply()
+	if event.Err != nil {
+		return nil, event.Err
 	}
-	defer conn.Close()
 
-	hotel, err := client.GetByHotelID(ctx, &comments.GetCommentsByHotelRequest{
+	defer event.Conn.Close()
+
+	hotel, err := event.Client.GetByHotelID(ctx, &comments.GetCommentsByHotelRequest{
 		HotelID: hotelID.String(),
 		Page:    page,
 		Size:    size,

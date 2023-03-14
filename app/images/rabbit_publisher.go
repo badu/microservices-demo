@@ -61,7 +61,7 @@ func (p *PublisherImpl) CreateExchangeAndQueue(exchange, queueName, bindingKey s
 		exchangeNoWait,
 		nil,
 	); err != nil {
-		return nil, errors.Join(err, errors.New("Error ch.ExchangeDeclare"))
+		return nil, errors.Join(err, errors.New("error ch.ExchangeDeclare"))
 	}
 
 	queue, err := amqpChan.QueueDeclare(
@@ -73,7 +73,7 @@ func (p *PublisherImpl) CreateExchangeAndQueue(exchange, queueName, bindingKey s
 		nil,
 	)
 	if err != nil {
-		return nil, errors.Join(err, errors.New("Error ch.QueueDeclare"))
+		return nil, errors.Join(err, errors.New("error ch.QueueDeclare"))
 	}
 
 	p.logger.Infof("Declared queue, binding it to exchange: Queue: %v, messageCount: %v, "+
@@ -93,7 +93,7 @@ func (p *PublisherImpl) CreateExchangeAndQueue(exchange, queueName, bindingKey s
 		nil,
 	)
 	if err != nil {
-		return nil, errors.Join(err, errors.New("Error ch.QueueBind"))
+		return nil, errors.Join(err, errors.New("error ch.QueueBind"))
 	}
 
 	return amqpChan, nil

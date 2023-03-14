@@ -10,6 +10,7 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/badu/bus"
 	"github.com/go-playground/validator/v10"
 	"github.com/go-redis/redis/v8"
 	"github.com/labstack/echo/v4"
@@ -17,17 +18,15 @@ import (
 	"github.com/opentracing/opentracing-go"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	echoSwagger "github.com/swaggo/echo-swagger"
-	"google.golang.org/grpc"
-
-	gatewayComments "github.com/badu/microservices-demo/app/gateway/comments"
-	gatewayHotels "github.com/badu/microservices-demo/app/gateway/hotels"
-	gatewayUsers "github.com/badu/microservices-demo/app/gateway/users"
-	"github.com/badu/microservices-demo/app/sessions"
 
 	"github.com/badu/microservices-demo/app/comments"
+	gatewayComments "github.com/badu/microservices-demo/app/gateway/comments"
+	"github.com/badu/microservices-demo/app/gateway/events"
+	gatewayHotels "github.com/badu/microservices-demo/app/gateway/hotels"
+	gatewayUsers "github.com/badu/microservices-demo/app/gateway/users"
 	"github.com/badu/microservices-demo/app/hotels"
+	"github.com/badu/microservices-demo/app/sessions"
 	"github.com/badu/microservices-demo/app/users"
-
 	"github.com/badu/microservices-demo/pkg/config"
 	"github.com/badu/microservices-demo/pkg/grpc_client"
 	"github.com/badu/microservices-demo/pkg/logger"
@@ -115,63 +114,71 @@ func (a *Application) MapRoutes() {
 	})
 }
 
-func HotelsGRPCClientFactory(
-	logger logger.Logger,
+func OnRequireHotelsGRPCClient(logger logger.Logger,
 	cfg *config.Config,
 	tracer opentracing.Tracer,
-) func(ctx context.Context) (*grpc.ClientConn, hotels.HotelsServiceClient, error) {
+) func(event *events.RequireHotelsGRPCClient) {
 	commonMW := grpc_client.NewClientMiddleware(logger, cfg, tracer)
-	return func(ctx context.Context) (*grpc.ClientConn, hotels.HotelsServiceClient, error) {
-		conn, err := grpc_client.NewGRPCClientServiceConn(ctx, commonMW, cfg.GRPC.HotelsServicePort)
+	return func(event *events.RequireHotelsGRPCClient) {
+		conn, err := grpc_client.NewGRPCClientServiceConn(event.Ctx, commonMW, cfg.GRPC.HotelsServicePort)
 		if err != nil {
-			return nil, nil, err
+			event.Err = err
+			return
 		}
-		return conn, hotels.NewHotelsServiceClient(conn), nil
+		event.Conn = conn
+		event.Client = hotels.NewHotelsServiceClient(conn)
+		event.Reply()
 	}
 }
 
-func CommentsGRPCClientFactory(
-	logger logger.Logger,
+func OnRequireCommentsGRPCClient(logger logger.Logger,
 	cfg *config.Config,
 	tracer opentracing.Tracer,
-) func(ctx context.Context) (*grpc.ClientConn, comments.CommentsServiceClient, error) {
+) func(event *events.RequireCommentsGRPCClient) {
 	commonMW := grpc_client.NewClientMiddleware(logger, cfg, tracer)
-	return func(ctx context.Context) (*grpc.ClientConn, comments.CommentsServiceClient, error) {
-		conn, err := grpc_client.NewGRPCClientServiceConn(ctx, commonMW, cfg.GRPC.CommentsServicePort)
+	return func(event *events.RequireCommentsGRPCClient) {
+		conn, err := grpc_client.NewGRPCClientServiceConn(event.Ctx, commonMW, cfg.GRPC.CommentsServicePort)
 		if err != nil {
-			return nil, nil, err
+			event.Err = err
+			return
 		}
-		return conn, comments.NewCommentsServiceClient(conn), nil
+		event.Conn = conn
+		event.Client = comments.NewCommentsServiceClient(conn)
+		event.Reply()
 	}
 }
 
-func UsersGRPCClientFactory(
-	logger logger.Logger,
+func OnRequireUsersGRPCClient(logger logger.Logger,
 	cfg *config.Config,
 	tracer opentracing.Tracer,
-) func(ctx context.Context) (*grpc.ClientConn, users.UserServiceClient, error) {
+) func(event *events.RequireUsersGRPCClient) {
 	commonMW := grpc_client.NewClientMiddleware(logger, cfg, tracer)
-	return func(ctx context.Context) (*grpc.ClientConn, users.UserServiceClient, error) {
-		conn, err := grpc_client.NewGRPCClientServiceConn(ctx, commonMW, cfg.GRPC.UserServicePort)
+	return func(event *events.RequireUsersGRPCClient) {
+		conn, err := grpc_client.NewGRPCClientServiceConn(event.Ctx, commonMW, cfg.GRPC.UserServicePort)
 		if err != nil {
-			return nil, nil, err
+			event.Err = err
+			return
 		}
-		return conn, users.NewUserServiceClient(conn), nil
+		event.Conn = conn
+		event.Client = users.NewUserServiceClient(conn)
+		event.Reply()
 	}
 }
 
-func SessionsGRPCClientFactory(
-	logger logger.Logger,
+func OnRequireSessionsGRPCClient(logger logger.Logger,
 	cfg *config.Config,
 	tracer opentracing.Tracer,
-) func(ctx context.Context) (*grpc.ClientConn, sessions.AuthorizationServiceClient, error) {
+) func(event *events.RequireSessionsGRPCClient) {
 	commonMW := grpc_client.NewClientMiddleware(logger, cfg, tracer)
-	return func(ctx context.Context) (*grpc.ClientConn, sessions.AuthorizationServiceClient, error) {
-		conn, err := grpc_client.NewGRPCClientServiceConn(ctx, commonMW, cfg.GRPC.SessionServicePort)
+	return func(event *events.RequireSessionsGRPCClient) {
+		conn, err := grpc_client.NewGRPCClientServiceConn(event.Ctx, commonMW, cfg.GRPC.SessionServicePort)
 		if err != nil {
-			return nil, nil, err
+			event.Err = err
+			return
 		}
-		return conn, sessions.NewAuthorizationServiceClient(conn), nil
+		event.Conn = conn
+		event.Client = sessions.NewAuthorizationServiceClient(conn)
+		event.Reply()
 	}
 }
 
@@ -179,13 +186,18 @@ func (a *Application) Run() error {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
+	bus.Sub(OnRequireCommentsGRPCClient(a.logger, a.cfg, a.tracer))
+	bus.Sub(OnRequireHotelsGRPCClient(a.logger, a.cfg, a.tracer))
+	bus.Sub(OnRequireUsersGRPCClient(a.logger, a.cfg, a.tracer))
+	bus.Sub(OnRequireSessionsGRPCClient(a.logger, a.cfg, a.tracer))
+
 	hotelsRepository := gatewayHotels.NewRepository(a.redisConn)
-	hotelsService := gatewayHotels.NewService(a.logger, &hotelsRepository, HotelsGRPCClientFactory(a.logger, a.cfg, a.tracer))
+	hotelsService := gatewayHotels.NewService(a.logger, &hotelsRepository)
 
 	commentsRepository := gatewayComments.NewRepository(a.redisConn)
-	commentsService := gatewayComments.NewService(a.logger, &commentsRepository, CommentsGRPCClientFactory(a.logger, a.cfg, a.tracer))
+	commentsService := gatewayComments.NewService(a.logger, &commentsRepository)
 
-	usersService := gatewayUsers.NewService(a.logger, SessionsGRPCClientFactory(a.logger, a.cfg, a.tracer), UsersGRPCClientFactory(a.logger, a.cfg, a.tracer))
+	usersService := gatewayUsers.NewService(a.logger)
 	userSessionMiddleware := gatewayUsers.NewSessionMiddleware(a.logger, a.cfg, &usersService)
 
 	validate := validator.New()

@@ -3,3 +3,11 @@
 /workspace.xml
 # Editor-based HTTP Client requests
 /httpRequests/
+/aws.xml
+/markdown.xml
+/microservices-demo.iml
+/modules.xml
+/inspectionProfiles/Project_Default.xml
+/protoeditor.xml
+/sqldialects.xml
+/vcs.xml

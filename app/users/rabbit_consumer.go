@@ -58,7 +58,7 @@ func (c *RabbitConsumerImpl) Dial() error {
 func (c *RabbitConsumerImpl) CreateExchangeAndQueue(exchangeName, queueName, bindingKey string) (*amqp.Channel, error) {
 	ch, err := c.amqpConn.Channel()
 	if err != nil {
-		return nil, errors.Join(err, errors.New("Error amqpConn.Channel"))
+		return nil, errors.Join(err, errors.New("error amqpConn.channel"))
 	}
 
 	c.logger.Infof("Declaring exchange: %s", exchangeName)
@@ -72,7 +72,7 @@ func (c *RabbitConsumerImpl) CreateExchangeAndQueue(exchangeName, queueName, bin
 		nil,
 	)
 	if err != nil {
-		return nil, errors.Join(err, errors.New("Error ch.ExchangeDeclare"))
+		return nil, errors.Join(err, errors.New("error ch.exchangeDeclare"))
 	}
 
 	queue, err := ch.QueueDeclare(
@@ -84,7 +84,7 @@ func (c *RabbitConsumerImpl) CreateExchangeAndQueue(exchangeName, queueName, bin
 		nil,
 	)
 	if err != nil {
-		return nil, errors.Join(err, errors.New("Error ch.QueueDeclare"))
+		return nil, errors.Join(err, errors.New("error ch.QueueDeclare"))
 	}
 
 	c.logger.Infof("Declared queue, binding it to exchange: Queue: %v, messagesCount: %v, "+
@@ -104,7 +104,7 @@ func (c *RabbitConsumerImpl) CreateExchangeAndQueue(exchangeName, queueName, bin
 		nil,
 	)
 	if err != nil {
-		return nil, errors.Join(err, errors.New("Error ch.QueueBind"))
+		return nil, errors.Join(err, errors.New("error ch.QueueBind"))
 	}
 
 	err = ch.Qos(
@@ -113,7 +113,7 @@ func (c *RabbitConsumerImpl) CreateExchangeAndQueue(exchangeName, queueName, bin
 		prefetchGlobal, // global
 	)
 	if err != nil {
-		return nil, errors.Join(err, errors.New("Error  ch.Qos"))
+		return nil, errors.Join(err, errors.New("error  ch.Qos"))
 	}
 
 	return ch, nil

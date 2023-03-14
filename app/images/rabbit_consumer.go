@@ -147,7 +147,7 @@ func (c *ConsumerImpl) startConsume(
 		nil,
 	)
 	if err != nil {
-		return errors.Join(err, errors.New("Consume"))
+		return errors.Join(err, errors.New("consume"))
 	}
 
 	wg := &sync.WaitGroup{}
